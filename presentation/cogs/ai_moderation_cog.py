@@ -19,6 +19,7 @@ from application.services.ai_moderation_policy_enforcer import AiModerationPolic
 from application.services.ai_moderation_settings_service import AiModerationSettingsService
 from application.services.channel_service import ChannelService
 from application.services.discord_message_content import DiscordMessageContentNormalizer
+from application.services.flood_enforcement_coordinator import FloodEnforcementCoordinator
 from application.services.user_moderation_context_builder import UserModerationContextBuilder
 from core.domain.channel_purpose import ChannelPurpose
 from core.domain.ai_moderation_guild_policy import AiModerationGuildPolicy
@@ -43,6 +44,7 @@ class AiModerationCog(commands.Cog):
         self._ai_repository = ai_repository
         self._content_normalizer = DiscordMessageContentNormalizer()
         self._policy_enforcer = AiModerationPolicyEnforcer()
+        self._flood_coordinator = FloodEnforcementCoordinator()
 
     async def cog_load(self) -> None:
         await self._queue.start()
@@ -205,6 +207,17 @@ class AiModerationCog(commands.Cog):
         member = guild.get_member(request.user_id)
         channel = guild.get_channel(request.channel_id)
         message = channel.get_partial_message(request.message_id) if isinstance(channel, (disnake.TextChannel, disnake.NewsChannel)) else None
+        if self._is_flood_timeout(decision):
+            is_primary_flood_incident = self._flood_coordinator.begin_or_join(
+                request.guild_id,
+                request.user_id,
+                request.message_id,
+                self._timeout_duration(decision),
+                datetime.now(),
+            )
+            if not is_primary_flood_incident:
+                await self._coalesce_flood_message(guild, member, message, request, decision)
+                return
         status = "SUCCESS"
         try:
             for action in decision.execution_plan:
@@ -221,6 +234,8 @@ class AiModerationCog(commands.Cog):
             )
         except Exception:
             status = "FAILED"
+            if self._is_flood_timeout(decision):
+                self._flood_coordinator.abort(request.guild_id, request.user_id)
             logger.exception("AI moderation action failed guild_id=%s message_id=%s", request.guild_id, request.message_id)
         # Audit persistence must never suppress the moderator-facing decision log.
         # The log is the immediate feedback loop for Shadow Mode and is useful even
@@ -239,6 +254,36 @@ class AiModerationCog(commands.Cog):
                 request.message_id,
             )
         await self._send_log(guild, request, decision, status)
+
+    @staticmethod
+    def _is_flood_timeout(decision: AiModerationDecision) -> bool:
+        return decision.action == "TIMEOUT" and "FLOOD" in {label.upper() for label in decision.labels}
+
+    async def _coalesce_flood_message(
+        self,
+        guild: disnake.Guild,
+        member: disnake.Member | None,
+        message: disnake.PartialMessage | None,
+        request: AiModerationRequest,
+        decision: AiModerationDecision,
+    ) -> None:
+        """Delete a later flood message without duplicating timeout or its log."""
+        try:
+            await self._execute_action(guild, member, message, "DELETE", decision.dry_run, decision, request)
+            await self._queue.report_action(
+                decision.event_id,
+                decision.action,
+                "DRY_RUN" if decision.dry_run else "SUCCESS",
+                decision.dry_run,
+            )
+            await self._settings_service.record_event(
+                request.guild_id, request.channel_id, request.message_id, request.user_id,
+                decision.risk_score, decision.action, decision.proposed_action,
+                decision.primary_label, decision.labels, decision.confidence,
+                decision.latency_ms, "COALESCED",
+            )
+        except Exception:
+            logger.exception("Could not coalesce flood message guild_id=%s message_id=%s", request.guild_id, request.message_id)
 
     async def _save_policy(self, ctx: disnake.ApplicationCommandInteraction, policy: dict[str, object], success_message: str) -> None:
         try:
