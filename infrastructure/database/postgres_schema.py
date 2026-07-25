@@ -152,6 +152,39 @@ class PostgresSchema:
             """,
             "CREATE INDEX IF NOT EXISTS idx_ai_moderation_events_guild_created ON ai_moderation_events(guild_id, created_at DESC)",
             """
+            CREATE TABLE IF NOT EXISTS ai_moderation_review_items (
+                id BIGSERIAL PRIMARY KEY,
+                guild_id BIGINT NOT NULL,
+                channel_id BIGINT NOT NULL,
+                message_id BIGINT NOT NULL,
+                user_id BIGINT NOT NULL,
+                message_text TEXT NOT NULL,
+                risk_score DOUBLE PRECISION NOT NULL,
+                severity INTEGER NOT NULL DEFAULT 0,
+                action TEXT NOT NULL,
+                labels_json JSONB NOT NULL DEFAULT '[]'::jsonb,
+                status TEXT NOT NULL DEFAULT 'OPEN',
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                resolved_at TIMESTAMP,
+                resolved_by BIGINT,
+                UNIQUE (guild_id, message_id)
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_ai_review_open ON ai_moderation_review_items(guild_id, status, created_at DESC)",
+            """
+            CREATE TABLE IF NOT EXISTS ai_moderation_review_audit (
+                id BIGSERIAL PRIMARY KEY,
+                review_item_id BIGINT NOT NULL REFERENCES ai_moderation_review_items(id) ON DELETE CASCADE,
+                guild_id BIGINT NOT NULL,
+                actor_id BIGINT NOT NULL,
+                action TEXT NOT NULL,
+                before_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+                after_json JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_ai_review_audit_item ON ai_moderation_review_audit(review_item_id, created_at DESC)",
+            """
             CREATE TABLE IF NOT EXISTS ai_moderation_role_restorations (
                 guild_id BIGINT NOT NULL,
                 user_id BIGINT NOT NULL,
