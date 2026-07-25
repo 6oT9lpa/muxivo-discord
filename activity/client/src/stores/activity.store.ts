@@ -11,6 +11,8 @@ import {
   getActivityAudit,
   getAiModeratorSettings,
   getAiModeratorMetrics,
+  getAiModeratorReviews,
+  getAiModeratorReviewAudit,
   getActivityDashboard,
   getActivityHealth,
   getActivityRoles,
@@ -35,6 +37,7 @@ import {
   saveActivityRole,
   saveAiModeratorChannels,
   saveAiModeratorPolicy,
+  saveAiModeratorReview,
   saveActivityAccessRoleModules,
   saveActivitySyncedRoleAssignments,
   saveChannelPurpose,
@@ -56,6 +59,9 @@ import type {
   ActivityHealth,
     AiModeratorSettings,
     AiModeratorMetrics,
+  AiModerationReviewPage,
+  AiModerationReviewAuditPage,
+  AiModerationReviewItem,
   ActivityAccessRole,
   ActivityAuditPage,
   ActivityDashboardResponse,
@@ -126,6 +132,8 @@ type State = {
   integrations: Record<string, unknown> | null;
     aiModerator: AiModeratorSettings | null;
     aiModeratorMetrics: AiModeratorMetrics | null;
+    aiModeratorReviews: AiModerationReviewPage | null;
+    aiModeratorReviewAudit: AiModerationReviewAuditPage | null;
   discordSdk: DiscordSDK | null;
   auth: Auth | null;
 };
@@ -171,6 +179,8 @@ export const useActivityStore = defineStore("activity", {
     integrations: mockIntegrations,
       aiModerator: null,
       aiModeratorMetrics: null,
+      aiModeratorReviews: null,
+      aiModeratorReviewAudit: null,
     discordSdk: null,
     auth: null,
   }),
@@ -494,6 +504,18 @@ export const useActivityStore = defineStore("activity", {
     async loadAiModeratorMetrics() {
       if (!this.session || !this.token || this.mode === "local") return;
       this.aiModeratorMetrics = await getAiModeratorMetrics(this.session.guild_id, this.token);
+    },
+    async loadAiModeratorReviews(status: "OPEN" | "RESOLVED" = "OPEN", offset = 0) {
+      if (!this.session || !this.token || this.mode === "local") return;
+      this.aiModeratorReviews = await getAiModeratorReviews(this.session.guild_id, this.token, status, offset);
+    },
+    async loadAiModeratorReviewAudit(offset = 0) {
+      if (!this.session || !this.token || this.mode === "local") return;
+      this.aiModeratorReviewAudit = await getAiModeratorReviewAudit(this.session.guild_id, this.token, offset);
+    },
+    async saveAiModeratorReview(item: AiModerationReviewItem) {
+      if (!this.session || !this.token || this.mode === "local") return;
+      await saveAiModeratorReview(this.session.guild_id, this.token, item);
     },
 
     async createDevBlog(draft: Omit<DevBlogDraft, "guild_id">) {

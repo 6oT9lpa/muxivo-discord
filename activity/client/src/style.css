@@ -4724,3 +4724,23 @@ input[type="color"] {
     gap: 18px;
   }
 }
+.review-subnav,
+.review-toolbar,
+.review-card header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.review-subnav { border-bottom: 1px solid var(--border-color, #30313d); margin-bottom: 1rem; }
+.review-subnav button { background: transparent; border: 0; color: inherit; padding: 0.7rem 0.9rem; cursor: pointer; }
+.review-subnav button.active { color: var(--accent-color, #5865f2); border-bottom: 2px solid currentColor; }
+.review-toolbar { justify-content: space-between; margin-bottom: 1rem; }
+.review-toolbar label { display: flex; gap: 0.5rem; align-items: center; }
+.review-list { display: grid; gap: 0.75rem; }
+.review-card, .review-editor { border: 1px solid var(--border-color, #30313d); border-radius: 10px; padding: 1rem; background: var(--surface-color, rgba(255,255,255,.03)); }
+.review-card header { justify-content: space-between; flex-wrap: wrap; }
+.review-card .ghost-button { margin-top: 0.75rem; }
+.review-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+.review-editor { margin-top: 1rem; display: grid; gap: 0.8rem; }
+.review-editor textarea { width: 100%; min-height: 6rem; resize: vertical; }

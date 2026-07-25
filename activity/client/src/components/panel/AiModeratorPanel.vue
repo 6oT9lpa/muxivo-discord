@@ -2,11 +2,12 @@
 import { computed, reactive, ref, watch } from "vue";
 import { Check, Hash, Plus, ShieldCheck, Trash2 } from "@lucide/vue";
 import RevealOnScroll from "../common/RevealOnScroll.vue";
+import AiModerationReviewQueue from "./AiModerationReviewQueue.vue";
 import { useActivityStore } from "../../stores/activity.store";
 import type { AiModerationAction, AiModerationLabelPolicy, AiModerationPolicy } from "../../types/activity.types";
 import { t } from "../../i18n";
 
-type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics";
+type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics" | "review";
 
 type LabelDefinition = {
   key: string;
@@ -42,8 +43,8 @@ const labelDefinitions: LabelDefinition[] = [
     key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, min, max),
   })),
 ];
-const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
-  .map((key) => ({ key, labelKey: `ai.tab.${key}` })));
+const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : []), ...(settings.value?.review_access ? ["review"] : [])] as AiModeratorTab[])
+  .map((key) => ({ key, labelKey: key === "review" ? "Review queue" : `ai.tab.${key}` })));
 const moderationPolicy = reactive<AiModerationPolicy>(emptyPolicy());
 
 watch(settings, (value) => {
@@ -222,7 +223,7 @@ function addExcludedId(kind: "user" | "role" | "channel") {
         @click="activeTab = tab.key"
       >
         <span
-          v-for="(letter, index) in tabLetters($t(tab.labelKey))"
+          v-for="(letter, index) in tabLetters(tab.key === 'review' ? tab.labelKey : $t(tab.labelKey))"
           :key="`${tab.key}-${index}`"
           class="ai-moderation-nav-letter"
           :style="{ transitionDelay: `${index * 22}ms` }"
@@ -232,7 +233,8 @@ function addExcludedId(kind: "user" | "role" | "channel") {
   </RevealOnScroll>
 
   <RevealOnScroll tag="section" class="panel-section module-content-panel" :delay="60">
-    <div v-if="activeTab === 'channels'" class="ai-moderation-workspace">
+    <AiModerationReviewQueue v-if="activeTab === 'review'" />
+    <div v-else-if="activeTab === 'channels'" class="ai-moderation-workspace">
       <div class="ai-moderation-section-copy">
         <div>
           <span class="ai-moderation-kicker">{{ $t("ai.channel_coverage") }}</span>

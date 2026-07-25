@@ -177,7 +177,18 @@ export type AiModeratorSettings = {
   is_default_policy: boolean;
   available_channels: DiscordChannel[];
   metrics_enabled: boolean;
+  review_access: boolean;
 };
+
+export type AiModerationReviewItem = {
+  id: number; guild_id: string; channel_id: string; message_id: string; user_id: string;
+  message_text: string; risk_score: number; severity: number; action: AiModerationAction;
+  labels: string[]; status: "OPEN" | "RESOLVED"; revision: number;
+  created_at: string; updated_at: string; resolved_at: string | null; resolved_by: string | null;
+};
+export type AiModerationReviewPage = { items: AiModerationReviewItem[]; total: number; limit: number; offset: number };
+export type AiModerationReviewAuditEntry = { id: number; review_item_id: number; actor_id: string; action: string; before_json: Record<string, unknown>; after_json: Record<string, unknown>; created_at: string; message_id: string; user_id: string };
+export type AiModerationReviewAuditPage = { items: AiModerationReviewAuditEntry[]; total: number; limit: number; offset: number };
 
 export type AiModeratorMetrics = {
   total_messages: number;

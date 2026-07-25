@@ -3,6 +3,9 @@ import type {
   ActivityHealth,
   AiModeratorSettings,
   AiModeratorMetrics,
+  AiModerationReviewPage,
+  AiModerationReviewAuditPage,
+  AiModerationReviewItem,
   ActivityAccessRole,
   ActivityAuditPage,
   ActivityDashboardResponse,
@@ -40,6 +43,17 @@ export function saveAiModeratorChannels(guildId: string, token: string, channelI
 
 export function saveAiModeratorPolicy(guildId: string, token: string, policy: Record<string, unknown>) {
   return apiRequest<AiModeratorSettings>("/api/ai-moderator/policy", { method: "PUT", body: JSON.stringify({ guild_id: guildId, policy }) }, token);
+}
+
+export function getAiModeratorReviews(guildId: string, token: string, status: "OPEN" | "RESOLVED", offset = 0) {
+  return apiRequest<AiModerationReviewPage>(`/api/ai-moderator/reviews?guild_id=${guildId}&status=${status}&limit=20&offset=${offset}`, {}, token);
+}
+export function getAiModeratorReviewAudit(guildId: string, token: string, offset = 0) {
+  return apiRequest<AiModerationReviewAuditPage>(`/api/ai-moderator/reviews/audit?guild_id=${guildId}&limit=20&offset=${offset}`, {}, token);
+}
+export function saveAiModeratorReview(guildId: string, token: string, item: AiModerationReviewItem) {
+  const { id, guild_id, channel_id, message_id, user_id, labels, created_at, updated_at, resolved_at, resolved_by, ...payload } = item;
+  return apiRequest<AiModerationReviewItem>(`/api/ai-moderator/reviews/${id}`, { method: "PUT", body: JSON.stringify({ guild_id: guildId, ...payload }) }, token);
 }
 
 export function exchangeDiscordCode(code: string) {
