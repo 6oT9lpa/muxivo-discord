@@ -81,4 +81,4 @@ class LabelingGuildSelectionView(disnake.ui.View):
 
     @staticmethod
     def _error_embed(description: str) -> disnake.Embed:
-        return EmbedBuilder(color=DEFAULT_COLORS["error"]).set_title("Labeling access denied").set_description(description).build()
+        return EmbedBuilder(color=DEFAULT_COLORS["moderation"]).set_title("Labeling access denied").set_description(description).build()

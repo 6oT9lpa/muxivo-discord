@@ -17,9 +17,16 @@ class LabelingCog(commands.Cog):
         self._service = service
         self._owner_id = owner_id
 
-    @commands.slash_command(name="labeling", description="Manage manual moderation labels in direct messages")
-    async def labeling(self, _: disnake.ApplicationCommandInteraction) -> None:
-        return None
+    @commands.slash_command(
+        name="labeling",
+        description="Manage manual moderation labels in direct messages",
+        contexts=disnake.InteractionContextTypes(bot_dm=True),
+    )
+    async def labeling(self, ctx: disnake.ApplicationCommandInteraction) -> None:
+        """Reject a bare invocation with an explicit, private explanation."""
+        if not await self._require_dm(ctx):
+            return
+        await self._respond(ctx, "Choose a labeling action", "Use a /labeling subcommand to manage trust, roles, or labels.")
 
     @labeling.sub_command(name="manage", description="Open the private server-selection interface")
     async def manage(self, ctx: disnake.ApplicationCommandInteraction) -> None:
@@ -249,6 +256,12 @@ class LabelingCog(commands.Cog):
 
     @staticmethod
     async def _respond(ctx: disnake.ApplicationCommandInteraction, title: str, description: str, *, error: bool = False) -> None:
-        color = DEFAULT_COLORS["error"] if error else DEFAULT_COLORS["success"]
+        color = DEFAULT_COLORS["moderation"] if error else DEFAULT_COLORS["success"]
         embed = EmbedBuilder(color=color).set_title(title).set_description(description).build()
-        await ctx.response.send_message(embed=embed, ephemeral=True)
+        # A failed authorization can be discovered after another layer has
+        # already acknowledged the interaction. Falling back to follow-up
+        # keeps the denial visible instead of raising InteractionResponded.
+        if ctx.response.is_done():
+            await ctx.followup.send(embed=embed, ephemeral=True)
+        else:
+            await ctx.response.send_message(embed=embed, ephemeral=True)
