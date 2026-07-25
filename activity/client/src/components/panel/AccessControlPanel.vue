@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Check, Layers3, Plus, ShieldCheck, X } from "@lucide/vue";
+import { Layers3, Plus, ShieldCheck, X } from "@lucide/vue";
 import RevealOnScroll from "../common/RevealOnScroll.vue";
 import { useActivityStore } from "../../stores/activity.store";
 import { accessConfigurableModules, moduleLabel } from "../../stores/mock-data";
@@ -33,12 +33,8 @@ async function saveRoleAccess(roleId: number, modules: Record<ModuleKey, Permiss
   }
 }
 
-function accessValue(permission: PermissionLevel) {
-  return permission === "disabled" ? "deny" : "access";
-}
-
-function setAccessValue(roleId: number, modules: Record<ModuleKey, PermissionLevel>, module: ModuleKey, value: string) {
-  modules[module] = value === "access" ? "view" : "disabled";
+function toggleModuleAccess(roleId: number, modules: Record<ModuleKey, PermissionLevel>, module: ModuleKey, granted: boolean) {
+  modules[module] = granted ? "view" : "disabled";
   void saveRoleAccess(roleId, modules);
 }
 
@@ -79,15 +75,13 @@ function enabledModuleCount(modules: Record<ModuleKey, PermissionLevel>) {
         </header>
         <div class="access-module-grid">
           <label v-for="module in visibleModules" :key="`${role.id}-${module}`" :class="{ granted: role.modules[module] !== 'disabled' }">
-            <span><Check v-if="role.modules[module] !== 'disabled'" :size="14" /><span>{{ moduleLabel(module) }}</span></span>
-            <select
-              :value="accessValue(role.modules[module])"
+            <span>{{ moduleLabel(module) }}</span>
+            <input
+              :checked="role.modules[module] !== 'disabled'"
               :disabled="role.slug === 'administrator'"
-              @change="setAccessValue(role.id, role.modules, module, ($event.target as HTMLSelectElement).value)"
-            >
-              <option value="access">{{ $t("access.allow") }}</option>
-              <option value="deny">{{ $t("access.deny") }}</option>
-            </select>
+              type="checkbox"
+              @change="toggleModuleAccess(role.id, role.modules, module, ($event.target as HTMLInputElement).checked)"
+            />
           </label>
         </div>
       </article>

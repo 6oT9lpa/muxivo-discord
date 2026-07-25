@@ -124,6 +124,38 @@ async def test_review_queue_allows_trusted_labeler(activity_ai_db, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_review_queue_backfills_historic_review_events(activity_ai_db, monkeypatch):
+    """Historic REVIEW events remain actionable after the queue persistence fix."""
+    service = AiModerationService()
+    guild_id, actor_id, message_id = 3004, 4004, 5004
+
+    async def module_access(*_):
+        return {"id": str(actor_id)}, {"is_admin": True}
+
+    async def context(*_):
+        return {"user": {"id": str(actor_id)}}
+
+    monkeypatch.setattr(service._access_service, "ensure_module_access", module_access)
+    monkeypatch.setattr(service._access_service, "fetch_user_context", context)
+    monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
+    await activity_ai_db.execute("INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,))
+    await activity_ai_db.execute("INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'LABELER', ?)", (guild_id, actor_id, actor_id))
+    await activity_ai_db.execute(
+        """INSERT INTO ai_moderation_events
+           (guild_id, channel_id, message_id, user_id, risk_score, decision_action, proposed_action, primary_label, labels_json, confidence, latency_ms, status)
+           VALUES (?, ?, ?, ?, ?, 'REVIEW', 'DELETE', 'SCAM', '[\"SCAM\"]'::jsonb, ?, ?, 'SUCCESS')""",
+        (guild_id, 6004, message_id, 7004, 72, 0.94, 12),
+    )
+
+    page = await service.list_review_items(guild_id, "token", "OPEN", 20, 0)
+
+    assert page["total"] == 1
+    assert page["items"][0]["message_id"] == str(message_id)
+    assert page["items"][0]["action"] == "DELETE"
+    assert page["items"][0]["labels"] == ["SCAM"]
+
+
+@pytest.mark.asyncio
 async def test_test_mode_simulation_never_creates_dataset_event(activity_ai_db, monkeypatch):
     service = AiModerationService()
     guild_id = 3002

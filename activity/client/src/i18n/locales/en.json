@@ -744,6 +744,7 @@
   "ai.exclusions.search_roles": "Search roles by name or ID",
   "ai.exclusions.search_channels": "Search channels by name or ID",
   "ai.exclusions.choose": "Choose from matching results",
+  "ai.exclusions.no_matches": "No matching results",
   "ai.exclusions.save": "Save exclusions",
   "ai.exclusions.saved": "AI moderator exclusions saved.",
   "ai.channel_coverage": "Channel coverage",

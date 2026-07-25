@@ -26,7 +26,12 @@ const emit = defineEmits<{
       :aria-selected="modelValue === tab.key"
       @click="emit('update:modelValue', tab.key)"
     >
-      <span>{{ tab.label }}</span>
+      <span
+        v-for="(letter, index) in tab.label"
+        :key="`${tab.key}-${index}`"
+        class="panel-tab-nav-letter"
+        :style="{ transitionDelay: `${index * 18}ms` }"
+      >{{ letter === " " ? "\u00a0" : letter }}</span>
     </button>
   </nav>
 </template>

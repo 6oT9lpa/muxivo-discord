@@ -744,6 +744,7 @@
   "ai.exclusions.search_roles": "Найти роль по названию или ID",
   "ai.exclusions.search_channels": "Найти канал по названию или ID",
   "ai.exclusions.choose": "Выберите подходящий вариант",
+  "ai.exclusions.no_matches": "Ничего не найдено",
   "ai.exclusions.save": "Сохранить исключения",
   "ai.exclusions.saved": "Исключения AI-модератора сохранены.",
   "ai.channel_coverage": "Охват каналов",

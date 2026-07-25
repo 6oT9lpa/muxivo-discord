@@ -4,6 +4,7 @@ import { useActivityStore } from "../../stores/activity.store";
 import { t, useI18n } from "../../i18n";
 import { logDetailRows, logEventTitle, parseLogEmbed } from "../../utils/logPresentation";
 import LogEmbedCard from "./LogEmbedCard.vue";
+import DiscordMentionText from "./DiscordMentionText.vue";
 
 const activity = useActivityStore();
 const { locale } = useI18n();
@@ -108,7 +109,7 @@ onMounted(() => {
           <dl v-if="!embedFor(row)" class="log-detail-list">
           <div v-for="detail in logDetailRows(row)" :key="detail.key">
             <dt>{{ detail.label }}</dt>
-            <dd>{{ detail.value }}</dd>
+            <dd><DiscordMentionText :text="detail.value" /></dd>
           </div>
         </dl>
         <small>{{ timeLabel(row.created_at) }}</small>
@@ -127,7 +128,7 @@ onMounted(() => {
           <dl v-if="!embedFor(row as unknown as Record<string, unknown>)" class="log-detail-list">
           <div v-for="detail in logDetailRows(row as unknown as Record<string, unknown>)" :key="detail.key">
             <dt>{{ detail.label }}</dt>
-            <dd>{{ detail.value }}</dd>
+            <dd><DiscordMentionText :text="detail.value" /></dd>
           </div>
         </dl>
         <small>{{ timeLabel(row.created_at) }}</small>

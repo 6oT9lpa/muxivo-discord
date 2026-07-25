@@ -146,6 +146,7 @@ class AiModerationService:
 
     async def list_review_items(self, guild_id: int, access_token: str, status: str, limit: int, offset: int) -> dict[str, object]:
         await self._ensure_review_access(guild_id, access_token)
+        await self._backfill_review_items(guild_id)
         limit = max(1, min(limit, 50))
         offset = max(0, offset)
         rows = await get_db().fetch_all(
@@ -159,6 +160,49 @@ class AiModerationService:
             "SELECT COUNT(*) AS count FROM ai_moderation_review_items WHERE guild_id = ? AND status = ?", (guild_id, status)
         )
         return {"items": [self._review_item_payload(row) for row in rows], "total": int(total_row["count"] if total_row else 0), "limit": limit, "offset": offset}
+
+    async def _backfill_review_items(self, guild_id: int) -> None:
+        """Restore review work created before queue persistence was enabled.
+
+        AI events are the durable source of truth for historic decisions.  Older
+        REVIEW events were logged but never inserted into the editable queue,
+        which made the panel appear empty despite real moderation activity.
+        The unique ``(guild_id, message_id)`` constraint keeps this recovery
+        idempotent for every queue refresh.
+        """
+        result = await get_db().execute(
+            """
+            INSERT INTO ai_moderation_review_items
+                (guild_id, channel_id, message_id, user_id, message_text, risk_score, severity, action, labels_json)
+            SELECT ai_event.guild_id,
+                   ai_event.channel_id,
+                   ai_event.message_id,
+                   ai_event.user_id,
+                   COALESCE(message_log.content, '[Message content is unavailable in retained logs]'),
+                   ai_event.risk_score,
+                   CASE
+                     WHEN ai_event.risk_score >= 85 THEN 5
+                     WHEN ai_event.risk_score >= 65 THEN 4
+                     WHEN ai_event.risk_score >= 45 THEN 3
+                     WHEN ai_event.risk_score >= 25 THEN 2
+                     ELSE 1
+                   END,
+                   COALESCE(ai_event.proposed_action, ai_event.decision_action),
+                   ai_event.labels_json
+            FROM ai_moderation_events ai_event
+            LEFT JOIN message_logs message_log
+              ON message_log.guild_id = ai_event.guild_id
+             AND message_log.channel_id = ai_event.channel_id
+             AND message_log.message_id = ai_event.message_id
+             AND message_log.author_id = ai_event.user_id
+            WHERE ai_event.guild_id = ?
+              AND (ai_event.decision_action = 'REVIEW' OR ai_event.proposed_action = 'REVIEW')
+            ON CONFLICT (guild_id, message_id) DO NOTHING
+            """,
+            (guild_id,),
+        )
+        if result.rowcount:
+            logger.info("Backfilled AI review items guild_id=%s count=%s", guild_id, result.rowcount)
 
     async def list_review_audit(self, guild_id: int, access_token: str, limit: int, offset: int) -> dict[str, object]:
         await self._ensure_review_access(guild_id, access_token)

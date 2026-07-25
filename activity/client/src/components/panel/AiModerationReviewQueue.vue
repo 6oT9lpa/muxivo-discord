@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
-import { ClipboardCheck, Clock3, PencilLine, ShieldCheck } from "@lucide/vue";
+import { ClipboardCheck, Clock3, PencilLine, RefreshCcw, ShieldCheck } from "@lucide/vue";
 import { useActivityStore } from "../../stores/activity.store";
 import type { AiModerationAction, AiModerationReviewItem } from "../../types/activity.types";
 import { t, useI18n } from "../../i18n";
@@ -14,6 +14,7 @@ const queueOffset = ref(0);
 const auditOffset = ref(0);
 const editing = ref<AiModerationReviewItem | null>(null);
 const feedback = ref("");
+const isLoading = ref(false);
 const actions: AiModerationAction[] = ["IGNORE", "LOG", "REVIEW", "WARN", "DELETE", "DELETE_WARN", "TIMEOUT", "KICK", "BAN"];
 const queue = computed(() => activity.aiModeratorReviews);
 const audit = computed(() => activity.aiModeratorReviewAudit);
@@ -26,14 +27,18 @@ onMounted(() => void reloadQueue());
 
 async function reloadQueue(offset = queueOffset.value) {
   queueOffset.value = Math.max(0, offset);
+  isLoading.value = true;
   try { await activity.loadAiModeratorReviews(status.value, queueOffset.value); feedback.value = ""; }
   catch (error) { feedback.value = error instanceof Error ? error.message : t("review.queue_load_failed"); }
+  finally { isLoading.value = false; }
 }
 
 async function reloadAudit(offset = auditOffset.value) {
   auditOffset.value = Math.max(0, offset);
+  isLoading.value = true;
   try { await activity.loadAiModeratorReviewAudit(auditOffset.value); feedback.value = ""; }
   catch (error) { feedback.value = error instanceof Error ? error.message : t("review.audit_load_failed"); }
+  finally { isLoading.value = false; }
 }
 
 function open(item: AiModerationReviewItem) {
@@ -69,18 +74,24 @@ function timeLabel(value: string) {
 </script>
 
 <template>
-  <div class="review-workspace">
+  <section class="panel-section module-intro review-intro">
     <header class="review-hero">
       <div><span>{{ $t("review.eyebrow") }}</span><h3>{{ $t("review.heading") }}</h3><p>{{ $t("review.description") }}</p></div>
       <div class="review-hero-status"><ShieldCheck :size="17" /><strong>{{ queue?.total ?? 0 }}</strong><small>{{ $t("review.open_decisions") }}</small></div>
     </header>
+  </section>
 
+  <section class="panel-section module-tabs-panel">
     <PanelTabNav :model-value="page" :tabs="tabs" :aria-label="$t('review.heading')" @update:model-value="switchPage" />
+  </section>
+
+  <section class="panel-section module-content-panel review-workspace">
     <p v-if="feedback" class="form-status">{{ feedback }}</p>
 
     <template v-if="page === 'queue'">
       <div class="review-toolbar"><label><span>{{ $t("review.status") }}</span><select v-model="status" @change="reloadQueue(0)"><option value="OPEN">{{ $t("review.open") }}</option><option value="RESOLVED">{{ $t("review.resolved") }}</option></select></label><span>{{ $t("review.decision_count", { count: queue?.total ?? 0 }) }}</span></div>
-      <div v-if="queue?.items.length" class="review-list">
+      <div v-if="isLoading" class="review-loading"><RefreshCcw :size="18" /><span>{{ $t("common.loading") }}</span></div>
+      <div v-else-if="queue?.items.length" class="review-list">
         <article v-for="item in queue.items" :key="item.id" class="review-card">
           <header><span class="review-card-icon"><ClipboardCheck :size="17" /></span><div><strong>{{ $t("review.decision", { id: item.id, action: item.action }) }}</strong><span>{{ $t("review.risk_severity", { risk: item.risk_score, severity: item.severity }) }}</span></div><button class="icon-button" type="button" :aria-label="$t('review.edit_decision')" :title="$t('review.edit_decision')" @click="open(item)"><PencilLine :size="16" /></button></header>
           <p class="review-message">{{ item.message_text }}</p>
@@ -99,7 +110,8 @@ function timeLabel(value: string) {
     </template>
 
     <template v-else>
-      <div v-if="audit?.items.length" class="review-list">
+      <div v-if="isLoading" class="review-loading"><RefreshCcw :size="18" /><span>{{ $t("common.loading") }}</span></div>
+      <div v-else-if="audit?.items.length" class="review-list">
         <article v-for="entry in audit.items" :key="entry.id" class="review-card review-audit-card">
           <header><span class="review-card-icon"><Clock3 :size="17" /></span><div><strong>{{ $t("review.audit_entry", { id: entry.review_item_id, action: entry.action }) }}</strong><span>{{ timeLabel(entry.created_at) }}</span></div></header>
           <p>{{ $t("review.moderator_message", { moderator: entry.actor_id, message: entry.message_id }) }}</p>
@@ -109,5 +121,5 @@ function timeLabel(value: string) {
       <div v-else class="ai-empty-state"><Clock3 :size="22" /><span>{{ $t("review.empty_audit") }}</span></div>
       <div class="form-actions"><button class="ghost-button" :disabled="auditOffset === 0" type="button" @click="reloadAudit(auditOffset - 20)">{{ $t("logs.previous") }}</button><button class="ghost-button" :disabled="!audit || auditOffset + audit.limit >= audit.total" type="button" @click="reloadAudit(auditOffset + 20)">{{ $t("logs.next") }}</button></div>
     </template>
-  </div>
+  </section>
 </template>
