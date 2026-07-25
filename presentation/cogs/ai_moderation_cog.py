@@ -215,7 +215,7 @@ class AiModerationCog(commands.Cog):
         member = guild.get_member(request.user_id)
         channel = guild.get_channel(request.channel_id)
         message = channel.get_partial_message(request.message_id) if isinstance(channel, (disnake.TextChannel, disnake.NewsChannel)) else None
-        if self._is_flood_timeout(decision):
+        if self._is_flood_timeout(decision) and not decision.dry_run:
             is_primary_flood_incident = self._flood_coordinator.begin_or_join(
                 request.guild_id,
                 request.user_id,
@@ -452,7 +452,7 @@ class AiModerationCog(commands.Cog):
         proposed = decision.proposed_action or decision.action
         _, proposed_title, _ = self._action_presentation(proposed)
         labels = ", ".join(label.replace("_", " ").title() for label in (decision.labels or (decision.primary_label,)))
-        execution_context = "Shadow mode — recommendation only" if decision.dry_run else "Decision recorded"
+        execution_context = "Test mode — no Discord actions executed" if decision.dry_run else "Decision recorded"
         reply_text = request.metadata.get("reply_context_text")
         reply_author_id = request.metadata.get("reply_context_author_id")
         # Match the compact visual hierarchy used by the rest of OmniBot's

@@ -69,12 +69,21 @@ class AiModerationPolicyEnforcer:
         labels = decision.labels if blacklist_action is None else tuple(dict.fromkeys((*decision.labels, "BLACKLIST")))
         proposed_action = action
         action = self._limit_enforcement(proposed_action, decision, policy)
+        dry_run = decision.dry_run
         if policy.test_mode:
-            # Preserve the recommendation for the Activity preview and audit,
-            # but never produce a Discord mutation from a test simulation.
-            action = AiModerationAction.LOG
+            # Test mode evaluates each live message against the complete
+            # server policy, including elevated outcomes such as BAN.  The
+            # action stays visible in logs, but ``dry_run`` prevents every
+            # Discord mutation and punishment-history write downstream.
+            action = proposed_action
+            dry_run = True
         execution_plan = self._execution_plan(action)
-        if action.value == decision.action and primary_label == decision.primary_label and execution_plan == decision.execution_plan:
+        if (
+            action.value == decision.action
+            and primary_label == decision.primary_label
+            and execution_plan == decision.execution_plan
+            and dry_run == decision.dry_run
+        ):
             return decision
         logger.info(
             "Applied guild AI moderation policy guild_id=%s message_id=%s action=%s",
@@ -89,6 +98,7 @@ class AiModerationPolicyEnforcer:
                 "primary_label": primary_label,
                 "labels": labels,
                 "execution_plan": execution_plan,
+                "dry_run": dry_run,
             }
         )
 

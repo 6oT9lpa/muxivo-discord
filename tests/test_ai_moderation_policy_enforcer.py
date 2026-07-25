@@ -136,15 +136,17 @@ def test_policy_exclusion_skips_a_whitelisted_role() -> None:
     assert adjusted.execution_plan == ("IGNORE",)
 
 
-def test_test_mode_never_returns_an_executable_action() -> None:
+def test_test_mode_preserves_full_decision_but_marks_it_dry_run() -> None:
     adjusted = AiModerationPolicyEnforcer().apply(
         _request("message"),
         _decision(action="DELETE", risk_score=90, labels=("SCAM",)),
         {"enforcement_mode": "ELEVATED", "beta_enforcement_acknowledged": True, "test_mode": True},
     )
 
-    assert adjusted.action == "LOG"
+    assert adjusted.action == "DELETE"
     assert adjusted.proposed_action == "DELETE"
+    assert adjusted.execution_plan == ("DELETE",)
+    assert adjusted.dry_run is True
 
 
 def test_weighted_recent_history_escalates_when_enabled() -> None:
