@@ -164,13 +164,17 @@ class PostgresSchema:
                 action TEXT NOT NULL,
                 labels_json JSONB NOT NULL DEFAULT '[]'::jsonb,
                 status TEXT NOT NULL DEFAULT 'OPEN',
+                revision INTEGER NOT NULL DEFAULT 1,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 resolved_at TIMESTAMP,
                 resolved_by BIGINT,
                 UNIQUE (guild_id, message_id)
             )
             """,
             "CREATE INDEX IF NOT EXISTS idx_ai_review_open ON ai_moderation_review_items(guild_id, status, created_at DESC)",
+            "ALTER TABLE ai_moderation_review_items ADD COLUMN IF NOT EXISTS revision INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE ai_moderation_review_items ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP",
             """
             CREATE TABLE IF NOT EXISTS ai_moderation_review_audit (
                 id BIGSERIAL PRIMARY KEY,

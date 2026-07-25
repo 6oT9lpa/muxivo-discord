@@ -11,6 +11,7 @@ from core.domain.default_ai_moderation_policy import default_ai_moderation_polic
 from core.domain.ai_moderation_guild_policy import AiModerationGuildPolicy
 from infrastructure.logging import get_logger
 from psycopg.types.json import Jsonb
+from fastapi import HTTPException
 
 logger = get_logger(__name__)
 
@@ -38,6 +39,7 @@ class AiModerationService:
             "is_default_policy": is_default_policy,
             "available_channels": await self._discord_service.list_channels(str(guild_id), "moderation"),
             "metrics_enabled": metrics_enabled,
+            "review_access": await self.can_access_review_queue(guild_id, access_token),
         }
 
     async def save_channels(self, payload: AiModerationChannelsPayload, access_token: str) -> dict[str, Any]:
@@ -104,6 +106,105 @@ class AiModerationService:
 
     async def _metrics_enabled(self, guild_id: int) -> bool:
         return await get_db().fetch_one("SELECT 1 FROM ai_moderation_metrics_access WHERE guild_id = ?", (guild_id,)) is not None
+
+    async def can_access_review_queue(self, guild_id: int, access_token: str) -> bool:
+        """Review data is more sensitive than normal panel settings.
+
+        Access therefore requires an explicitly trusted guild and a user appointed
+        through Labeling (or the fixed service owner), independently of Activity RBAC.
+        """
+        try:
+            context = await self._access_service.fetch_user_context(access_token, str(guild_id))
+        except HTTPException:
+            return False
+        user_id = int(context["user"]["id"])
+        trusted = await get_db().fetch_one("SELECT 1 FROM trusted_guilds WHERE guild_id = ?", (guild_id,))
+        if trusted is None:
+            return False
+        if user_id == 762514681209946122:
+            return True
+        admin = await get_db().fetch_one(
+            "SELECT 1 FROM labeling_roles WHERE guild_id = ? AND user_id = ? AND role = 'ADMIN'",
+            (guild_id, user_id),
+        )
+        return admin is not None
+
+    async def _ensure_review_access(self, guild_id: int, access_token: str) -> int:
+        await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator")
+        context = await self._access_service.fetch_user_context(access_token, str(guild_id))
+        user_id = int(context["user"]["id"])
+        if not await self.can_access_review_queue(guild_id, access_token):
+            logger.warning("AI review queue access denied guild_id=%s user_id=%s", guild_id, user_id)
+            raise HTTPException(status_code=403, detail="AI review queue requires a trusted guild and Labeling administrator access")
+        return user_id
+
+    async def list_review_items(self, guild_id: int, access_token: str, status: str, limit: int, offset: int) -> dict[str, object]:
+        await self._ensure_review_access(guild_id, access_token)
+        limit = max(1, min(limit, 50))
+        offset = max(0, offset)
+        rows = await get_db().fetch_all(
+            """SELECT id, guild_id, channel_id, message_id, user_id, message_text, risk_score, severity, action,
+                      labels_json, status, revision, created_at, updated_at, resolved_at, resolved_by
+               FROM ai_moderation_review_items WHERE guild_id = ? AND status = ?
+               ORDER BY created_at DESC LIMIT ? OFFSET ?""",
+            (guild_id, status, limit, offset),
+        )
+        total_row = await get_db().fetch_one(
+            "SELECT COUNT(*) AS count FROM ai_moderation_review_items WHERE guild_id = ? AND status = ?", (guild_id, status)
+        )
+        return {"items": [self._review_item_payload(row) for row in rows], "total": int(total_row["count"] if total_row else 0), "limit": limit, "offset": offset}
+
+    async def list_review_audit(self, guild_id: int, access_token: str, limit: int, offset: int) -> dict[str, object]:
+        await self._ensure_review_access(guild_id, access_token)
+        limit = max(1, min(limit, 50))
+        offset = max(0, offset)
+        rows = await get_db().fetch_all(
+            """SELECT audit.id, audit.review_item_id, audit.actor_id, audit.action, audit.before_json, audit.after_json, audit.created_at,
+                      item.message_id, item.user_id
+               FROM ai_moderation_review_audit audit
+               JOIN ai_moderation_review_items item ON item.id = audit.review_item_id
+               WHERE audit.guild_id = ? ORDER BY audit.created_at DESC LIMIT ? OFFSET ?""",
+            (guild_id, limit, offset),
+        )
+        total_row = await get_db().fetch_one("SELECT COUNT(*) AS count FROM ai_moderation_review_audit WHERE guild_id = ?", (guild_id,))
+        return {"items": [dict(row) for row in rows], "total": int(total_row["count"] if total_row else 0), "limit": limit, "offset": offset}
+
+    async def update_review_item(self, item_id: int, payload: Any, access_token: str) -> dict[str, object]:
+        actor_id = await self._ensure_review_access(payload.guild_id, access_token)
+        current = await get_db().fetch_one(
+            "SELECT id, message_text, risk_score, severity, action, status, revision FROM ai_moderation_review_items WHERE id = ? AND guild_id = ?",
+            (item_id, payload.guild_id),
+        )
+        if current is None:
+            raise HTTPException(status_code=404, detail="Review item was not found")
+        before = dict(current)
+        result = await get_db().execute(
+            """UPDATE ai_moderation_review_items SET message_text = ?, risk_score = ?, severity = ?, action = ?, status = ?,
+                      revision = revision + 1, updated_at = CURRENT_TIMESTAMP,
+                      resolved_at = CASE WHEN ? = 'RESOLVED' THEN CURRENT_TIMESTAMP ELSE NULL END,
+                      resolved_by = CASE WHEN ? = 'RESOLVED' THEN ? ELSE NULL END
+               WHERE id = ? AND guild_id = ? AND revision = ?""",
+            (payload.message_text, payload.risk_score, payload.severity, payload.action.value, payload.status,
+             payload.status, payload.status, actor_id, item_id, payload.guild_id, payload.revision),
+        )
+        if not result.rowcount:
+            raise HTTPException(status_code=409, detail="Review item was changed by another moderator; reload it before saving")
+        after = {"message_text": payload.message_text, "risk_score": payload.risk_score, "severity": payload.severity, "action": payload.action.value, "status": payload.status, "revision": payload.revision + 1}
+        await get_db().execute(
+            "INSERT INTO ai_moderation_review_audit (review_item_id, guild_id, actor_id, action, before_json, after_json) VALUES (?, ?, ?, ?, ?, ?)",
+            (item_id, payload.guild_id, actor_id, "RESOLVED" if payload.status == "RESOLVED" else "UPDATED", Jsonb(before), Jsonb(after)),
+        )
+        logger.info("AI review item updated guild_id=%s item_id=%s actor_id=%s status=%s", payload.guild_id, item_id, actor_id, payload.status)
+        refreshed = await get_db().fetch_one(
+            "SELECT id, guild_id, channel_id, message_id, user_id, message_text, risk_score, severity, action, labels_json, status, revision, created_at, updated_at, resolved_at, resolved_by FROM ai_moderation_review_items WHERE id = ?", (item_id,)
+        )
+        return self._review_item_payload(refreshed) if refreshed else after
+
+    @staticmethod
+    def _review_item_payload(row: dict[str, Any]) -> dict[str, Any]:
+        item = dict(row)
+        item["labels"] = list(item.pop("labels_json") or [])
+        return item
 
     @staticmethod
     def _top_counts(values: dict[str, int]) -> list[dict[str, object]]:

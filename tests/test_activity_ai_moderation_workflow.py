@@ -5,6 +5,7 @@ import activity.server.dependencies as activity_dependencies
 import activity.server.services.ai_moderation_service as ai_service_module
 from activity.server.schemas.ai_moderation_channels import AiModerationChannelsPayload
 from activity.server.schemas.ai_moderation_policy import AiModerationPolicyPayload
+from activity.server.schemas.ai_moderation_review import AiModerationReviewUpdatePayload
 from activity.server.services.ai_moderation_service import AiModerationService
 
 
@@ -69,3 +70,39 @@ async def test_ai_moderation_persists_exact_discord_snowflakes_and_policy(activi
     assert saved_policy["policy"]["blacklist_words"] == ["fraud", "spam"]
     assert reloaded["channels"] == [str(selected_channel_id)]
     assert reloaded["policy"]["allowed_domains"] == ["example.com"]
+
+
+@pytest.mark.asyncio
+async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(activity_ai_db, monkeypatch):
+    service = AiModerationService()
+    guild_id, actor_id = 3001, 4001
+
+    async def module_access(*_):
+        return {"id": str(actor_id)}, {"is_admin": True}
+
+    async def context(*_):
+        return {"user": {"id": str(actor_id)}}
+
+    monkeypatch.setattr(service._access_service, "ensure_module_access", module_access)
+    monkeypatch.setattr(service._access_service, "fetch_user_context", context)
+    monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
+
+    await activity_ai_db.execute("INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,))
+    await activity_ai_db.execute("INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'ADMIN', ?)", (guild_id, actor_id, actor_id))
+    await activity_ai_db.execute(
+        "INSERT INTO ai_moderation_review_items (guild_id, channel_id, message_id, user_id, message_text, risk_score, severity, action, labels_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb)",
+        (guild_id, 1, 2, 3, "test", 40, 2, "REVIEW"),
+    )
+
+    page = await service.list_review_items(guild_id, "token", "OPEN", 20, 0)
+    assert page["total"] == 1
+    item = page["items"][0]
+    updated = await service.update_review_item(item["id"], AiModerationReviewUpdatePayload(
+        guild_id=guild_id, revision=item["revision"], message_text="corrected", risk_score=55, severity=4,
+        action="DELETE", status="RESOLVED",
+    ), "token")
+    assert updated["status"] == "RESOLVED"
+    assert updated["revision"] == 2
+    audit = await service.list_review_audit(guild_id, "token", 20, 0)
+    assert audit["total"] == 1
+    assert audit["items"][0]["action"] == "RESOLVED"
