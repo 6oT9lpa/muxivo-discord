@@ -7,6 +7,7 @@ from application.dto.ai_moderation_request import AiModerationRequest
 from application.dto.user_moderation_context import UserModerationContext, UserPunishmentStatistics
 from application.services.ai_moderation_policy_enforcer import AiModerationPolicyEnforcer
 from core.domain.ai_moderation_action import AiModerationAction
+from core.domain.ai_moderation_enforcement_mode import AiModerationEnforcementMode
 from core.domain.default_ai_moderation_policy import default_ai_moderation_policy
 
 
@@ -112,7 +113,7 @@ def test_high_impact_actions_delete_the_source_message_first(action: str) -> Non
 
 def test_elevated_flood_rule_deletes_message_and_times_out_member() -> None:
     policy = default_ai_moderation_policy().model_copy(
-        update={"enforcement_mode": "ELEVATED", "beta_enforcement_acknowledged": True, "allow_automated_timeout": True}
+        update={"enforcement_mode": AiModerationEnforcementMode.ELEVATED, "beta_enforcement_acknowledged": True, "allow_automated_timeout": True}
     )
     adjusted = AiModerationPolicyEnforcer().apply(
         _request("same message repeated"),
