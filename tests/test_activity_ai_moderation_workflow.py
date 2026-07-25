@@ -110,6 +110,20 @@ async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(a
 
 
 @pytest.mark.asyncio
+async def test_review_queue_allows_trusted_labeler(activity_ai_db, monkeypatch):
+    service = AiModerationService()
+    guild_id, actor_id = 3003, 4003
+
+    async def context(*_): return {"user": {"id": str(actor_id)}}
+    monkeypatch.setattr(service._access_service, "fetch_user_context", context)
+    monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
+    await activity_ai_db.execute("INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,))
+    await activity_ai_db.execute("INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'LABELER', ?)", (guild_id, actor_id, actor_id))
+
+    assert await service.can_access_review_queue(guild_id, "token") is True
+
+
+@pytest.mark.asyncio
 async def test_test_mode_simulation_never_creates_dataset_event(activity_ai_db, monkeypatch):
     service = AiModerationService()
     guild_id = 3002

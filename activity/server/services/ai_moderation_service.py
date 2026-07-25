@@ -129,11 +129,11 @@ class AiModerationService:
             return False
         if user_id == 762514681209946122:
             return True
-        admin = await get_db().fetch_one(
-            "SELECT 1 FROM labeling_roles WHERE guild_id = ? AND user_id = ? AND role = 'ADMIN'",
+        trusted_role = await get_db().fetch_one(
+            "SELECT 1 FROM labeling_roles WHERE guild_id = ? AND user_id = ? AND role IN ('ADMIN', 'LABELER')",
             (guild_id, user_id),
         )
-        return admin is not None
+        return trusted_role is not None
 
     async def _ensure_review_access(self, guild_id: int, access_token: str) -> int:
         await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator")
@@ -141,7 +141,7 @@ class AiModerationService:
         user_id = int(context["user"]["id"])
         if not await self.can_access_review_queue(guild_id, access_token):
             logger.warning("AI review queue access denied guild_id=%s user_id=%s", guild_id, user_id)
-            raise HTTPException(status_code=403, detail="AI review queue requires a trusted guild and Labeling administrator access")
+            raise HTTPException(status_code=403, detail="AI review queue requires a trusted guild and a Labeling ADMIN or LABELER role")
         return user_id
 
     async def list_review_items(self, guild_id: int, access_token: str, status: str, limit: int, offset: int) -> dict[str, object]:
