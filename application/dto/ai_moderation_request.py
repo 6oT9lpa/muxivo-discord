@@ -13,6 +13,8 @@ class AiModerationRequest(BaseModel):
     guild_id: int = Field(gt=0)
     channel_id: int = Field(gt=0)
     user_id: int = Field(gt=0)
+    author_role_ids: tuple[int, ...] = Field(default=(), max_length=250)
+    author_is_bot: bool = False
     message_id: int = Field(gt=0)
     raw_text: str = Field(max_length=8_000)
     created_at: datetime

@@ -11,6 +11,7 @@ class UserPunishmentStatistics(BaseModel):
     timeouts_in_window: int = Field(default=0, ge=0)
     ai_deleted_messages_in_window: int = Field(default=0, ge=0)
     bans_in_window: int = Field(default=0, ge=0)
+    weighted_escalation_score: float = Field(default=0.0, ge=0.0)
     last_punishment_at: datetime | None = None
 
 

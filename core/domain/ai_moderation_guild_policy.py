@@ -18,6 +18,14 @@ class AiModerationGuildPolicy(BaseModel):
     context_window_days: int = Field(default=30, ge=1, le=3650)
     repeat_offender_threshold: int = Field(default=3, ge=1, le=1000)
     repeat_offender_action: AiModerationAction = AiModerationAction.TIMEOUT
+    escalation_enabled: bool = True
+    escalation_score_threshold: float = Field(default=3.0, ge=0.1, le=1000)
+    escalation_half_life_days: float = Field(default=30.0, ge=1.0, le=3650)
+    excluded_user_ids: tuple[int, ...] = Field(default=(), max_length=500)
+    excluded_role_ids: tuple[int, ...] = Field(default=(), max_length=500)
+    excluded_channel_ids: tuple[int, ...] = Field(default=(), max_length=500)
+    exclude_bots: bool = True
+    test_mode: bool = False
     enforcement_mode: AiModerationEnforcementMode = AiModerationEnforcementMode.SHADOW
     limited_min_confidence: float = Field(default=0.95, ge=0.0, le=1.0)
     limited_hard_rule_labels: tuple[str, ...] = ("INVITE", "SCAM", "IMAGE_SCAM")
@@ -62,6 +70,14 @@ class AiModerationGuildPolicy(BaseModel):
         normalized = tuple(dict.fromkeys(value.strip().casefold() for value in values if value.strip()))
         if any(len(value) > 253 for value in normalized):
             raise ValueError("policy value exceeds maximum length")
+        return normalized
+
+    @field_validator("excluded_user_ids", "excluded_role_ids", "excluded_channel_ids")
+    @classmethod
+    def normalize_snowflakes(cls, values: tuple[int, ...]) -> tuple[int, ...]:
+        normalized = tuple(dict.fromkeys(int(value) for value in values))
+        if any(value <= 0 for value in normalized):
+            raise ValueError("excluded IDs must be positive Discord snowflakes")
         return normalized
 
     @field_validator("labels", mode="before")

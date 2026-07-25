@@ -48,12 +48,18 @@ class AiModerationPolicyEnforcer:
         ``action`` is the only value the Discord cog is allowed to execute.
         """
         policy = AiModerationGuildPolicy.model_validate(raw_policy)
+        if self._is_excluded(policy, request):
+            return decision.model_copy(
+                update={
+                    "action": AiModerationAction.IGNORE.value,
+                    "proposed_action": decision.action,
+                    "execution_plan": (AiModerationAction.IGNORE.value,),
+                }
+            )
         configured_action = self._configured_action(policy, decision)
         blacklist_action = self._blacklist_action(policy, request.raw_text)
         domain_action = self._unapproved_domain_action(policy, request.raw_text)
-        # User history informs the upstream decision context. This layer must not
-        # manufacture a stronger punishment from a single classifier response.
-        history_action = None
+        history_action = self._repeat_offender_action(policy, request, decision)
         action = max(
             (candidate for candidate in (configured_action, blacklist_action, domain_action, history_action) if candidate is not None),
             key=lambda candidate: self._ACTION_RANK[candidate],
@@ -63,6 +69,10 @@ class AiModerationPolicyEnforcer:
         labels = decision.labels if blacklist_action is None else tuple(dict.fromkeys((*decision.labels, "BLACKLIST")))
         proposed_action = action
         action = self._limit_enforcement(proposed_action, decision, policy)
+        if policy.test_mode:
+            # Preserve the recommendation for the Activity preview and audit,
+            # but never produce a Discord mutation from a test simulation.
+            action = AiModerationAction.LOG
         execution_plan = self._execution_plan(action)
         if action.value == decision.action and primary_label == decision.primary_label and execution_plan == decision.execution_plan:
             return decision
@@ -165,9 +175,26 @@ class AiModerationPolicyEnforcer:
 
     def _repeat_offender_action(self, policy: AiModerationGuildPolicy, request: AiModerationRequest, decision: AiModerationDecision) -> AiModerationAction | None:
         context = request.user_context
-        if context is None or AiModerationAction(decision.action) in {AiModerationAction.IGNORE, AiModerationAction.LOG}:
+        if (
+            not policy.escalation_enabled
+            or context is None
+            or AiModerationAction(decision.action) in {AiModerationAction.IGNORE, AiModerationAction.LOG}
+        ):
             return None
-        return policy.repeat_offender_action if context.punishments.total_in_window >= policy.repeat_offender_threshold else None
+        return (
+            policy.repeat_offender_action
+            if context.punishments.weighted_escalation_score >= policy.escalation_score_threshold
+            else None
+        )
+
+    @staticmethod
+    def _is_excluded(policy: AiModerationGuildPolicy, request: AiModerationRequest) -> bool:
+        return (
+            request.user_id in policy.excluded_user_ids
+            or request.channel_id in policy.excluded_channel_ids
+            or bool(set(request.author_role_ids) & set(policy.excluded_role_ids))
+            or (request.author_is_bot and policy.exclude_bots)
+        )
 
     def _is_allowed_domain(self, domain: str, allowed_domains: tuple[str, ...]) -> bool:
         return any(domain == allowed or domain.endswith(f".{allowed}") for allowed in allowed_domains)

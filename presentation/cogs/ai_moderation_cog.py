@@ -110,13 +110,21 @@ class AiModerationCog(commands.Cog):
         if not await self._settings_service.is_enabled_for_channel(message.guild.id, message.channel.id):
             return None
         policy = AiModerationGuildPolicy.model_validate(await self._settings_service.get_policy(message.guild.id))
-        user_context = await self._context_builder.build(message.author, message.guild.id, message.author.id, policy.context_window_days)
+        user_context = await self._context_builder.build(
+            message.author,
+            message.guild.id,
+            message.author.id,
+            policy.context_window_days,
+            policy.escalation_half_life_days,
+        )
         recent_messages, recent_timestamps = await self._recent_author_messages(message)
         metadata = await self._reply_context(message)
         return AiModerationRequest(
             guild_id=message.guild.id,
             channel_id=message.channel.id,
             user_id=message.author.id,
+            author_role_ids=tuple(role.id for role in getattr(message.author, "roles", ()) if role != message.guild.default_role),
+            author_is_bot=message.author.bot,
             message_id=message.id,
             raw_text=message.content,
             created_at=message.created_at,

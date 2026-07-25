@@ -12,7 +12,14 @@ class UserModerationContextBuilder:
         self._punishments = punishments
         self._moderation_events = moderation_events
 
-    async def build(self, member: object, guild_id: int, user_id: int, window_days: int) -> UserModerationContext:
+    async def build(
+        self,
+        member: object,
+        guild_id: int,
+        user_id: int,
+        window_days: int,
+        escalation_half_life_days: float = 30.0,
+    ) -> UserModerationContext:
         now = datetime.now(timezone.utc)
         since = now - timedelta(days=window_days)
         rows = await self._punishments.list_for_user(guild_id, user_id, limit=500)
@@ -32,6 +39,11 @@ class UserModerationContextBuilder:
                 timeouts_in_window=sum(item in {"timeout", "mute"} for item in types),
                 ai_deleted_messages_in_window=ai_deleted,
                 bans_in_window=types.count("ban"),
+                weighted_escalation_score=self._weighted_escalation_score(
+                    in_window,
+                    now,
+                    escalation_half_life_days,
+                ),
                 last_punishment_at=max((self._created_at(row) for row in rows if self._created_at(row)), default=None),
             ),
         )
@@ -50,3 +62,21 @@ class UserModerationContextBuilder:
 
     def _age_days(self, now: datetime, value: datetime | None) -> int | None:
         return max(0, (now - value).days) if value else None
+
+    def _weighted_escalation_score(
+        self,
+        rows: list[dict[str, object]],
+        now: datetime,
+        half_life_days: float,
+    ) -> float:
+        """Weight warnings/timeouts by recency so old history fades safely."""
+        weights = {"warn": 1.0, "timeout": 2.0, "mute": 2.0}
+        score = 0.0
+        for row in rows:
+            created_at = self._created_at(row)
+            base_weight = weights.get(str(row.get("type", "")).casefold(), 0.0)
+            if created_at is None or base_weight == 0:
+                continue
+            age_days = max(0.0, (now - created_at).total_seconds() / 86_400)
+            score += base_weight * (0.5 ** (age_days / half_life_days))
+        return round(score, 4)

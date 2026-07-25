@@ -124,6 +124,45 @@ def test_elevated_flood_rule_deletes_message_and_times_out_member() -> None:
     assert adjusted.execution_plan == ("DELETE", "TIMEOUT")
 
 
+def test_policy_exclusion_skips_a_whitelisted_role() -> None:
+    adjusted = AiModerationPolicyEnforcer().apply(
+        _request("message").model_copy(update={"author_role_ids": (42,)}),
+        _decision(action="DELETE", risk_score=90, labels=("SCAM",)),
+        {"excluded_role_ids": [42]},
+    )
+
+    assert adjusted.action == "IGNORE"
+    assert adjusted.execution_plan == ("IGNORE",)
+
+
+def test_test_mode_never_returns_an_executable_action() -> None:
+    adjusted = AiModerationPolicyEnforcer().apply(
+        _request("message"),
+        _decision(action="DELETE", risk_score=90, labels=("SCAM",)),
+        {"enforcement_mode": "ELEVATED", "beta_enforcement_acknowledged": True, "test_mode": True},
+    )
+
+    assert adjusted.action == "LOG"
+    assert adjusted.proposed_action == "DELETE"
+
+
+def test_weighted_recent_history_escalates_when_enabled() -> None:
+    request = _request("message").model_copy(
+        update={
+            "user_context": UserModerationContext(
+                punishments=UserPunishmentStatistics(window_days=30, weighted_escalation_score=3.0)
+            )
+        }
+    )
+    adjusted = AiModerationPolicyEnforcer().apply(
+        request,
+        _decision(action="WARN", risk_score=90, labels=("TOXIC",)),
+        {"enforcement_mode": "ELEVATED", "beta_enforcement_acknowledged": True, "allow_automated_timeout": True},
+    )
+
+    assert adjusted.action == "TIMEOUT"
+
+
 def _request(raw_text: str) -> AiModerationRequest:
     return AiModerationRequest(
         guild_id=1,
