@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -39,6 +40,12 @@ class _AuditEntry:
         self.user = user
         self.created_at = datetime.now(timezone.utc)
         self.extra = type("Extra", (), {"channel": _Channel(channel_id)})()
+
+
+class _RawDelete:
+    def __init__(self, message_id: int):
+        self.message_id = message_id
+        self.cached_message = None
 
 
 class _LoggingService:
@@ -88,3 +95,15 @@ async def test_moderator_delete_is_attributed_from_matching_audit_entry() -> Non
     await cog.on_message_delete(_Message(50, author, guild))
 
     assert service.deleted_by is moderator
+
+
+@pytest.mark.asyncio
+async def test_uncached_delete_uses_recent_message_cache() -> None:
+    cog = LoggingCog(_Bot(_User(100)), _LoggingService(), None, None)
+    message = _Message(50, _User(200))
+    cog._log_deleted_message = AsyncMock()
+
+    await cog.on_message(message)
+    await cog.on_raw_message_delete(_RawDelete(message.id))
+
+    cog._log_deleted_message.assert_awaited_once_with(message)

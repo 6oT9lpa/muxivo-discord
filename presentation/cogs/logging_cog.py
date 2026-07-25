@@ -1,4 +1,6 @@
 import asyncio
+from collections import OrderedDict
+from types import SimpleNamespace
 
 import disnake
 from disnake.ext import commands, tasks
@@ -24,6 +26,11 @@ class LoggingCog(commands.Cog):
         # their message IDs before calling Discord so their logs stay accurate
         # without waiting for an eventually-consistent audit-log entry.
         self._bot_deleted_message_ids: set[int] = set()
+        # Discord emits ``on_message_delete`` only for its own short-lived
+        # message cache. Keep a bounded cache so raw deletion events can still
+        # be logged when Discord has already evicted the original message.
+        self._recent_messages: OrderedDict[int, disnake.Message] = OrderedDict()
+        self._recent_message_limit = 5_000
 
     def register_bot_message_deletion(self, message_id: int) -> None:
         """Mark a deletion initiated by OmniBot for the next gateway event."""
@@ -61,6 +68,31 @@ class LoggingCog(commands.Cog):
 
     @commands.Cog.listener()
     async def on_message_delete(self, message: disnake.Message):
+        self._recent_messages.pop(message.id, None)
+        await self._log_deleted_message(message)
+
+    @commands.Cog.listener()
+    async def on_raw_message_delete(self, payload: disnake.RawMessageDeleteEvent):
+        """Log an uncached deletion using the bot's bounded message cache."""
+        if payload.cached_message is not None:
+            # The normal deletion listener receives cached messages.
+            return
+        message = self._recent_messages.pop(payload.message_id, None)
+        if message is not None:
+            await self._log_deleted_message(message)
+
+    @commands.Cog.listener()
+    async def on_message(self, message: disnake.Message):
+        """Retain enough source data to log a later raw deletion event."""
+        if not message.guild or message.author.bot:
+            return
+        self._recent_messages[message.id] = message
+        self._recent_messages.move_to_end(message.id)
+        while len(self._recent_messages) > self._recent_message_limit:
+            self._recent_messages.popitem(last=False)
+
+    async def _log_deleted_message(self, message: disnake.Message) -> None:
+        """Resolve the actor where possible, then persist and send the log."""
         if not message.guild or message.author.bot:
             return
 
@@ -273,7 +305,20 @@ class LoggingCog(commands.Cog):
             if not entry.changes:
                 return
 
-            for change in entry.changes:
+            timeout_before = getattr(entry.changes.before, "communication_disabled_until", None)
+            timeout_after = getattr(entry.changes.after, "communication_disabled_until", None)
+            if timeout_before is None and timeout_after is None:
+                return
+
+            # disnake exposes AuditLogChanges as before/after diffs, rather
+            # than an iterable collection of individual changes.
+            for change in (
+                SimpleNamespace(
+                    key="communication_disabled_until",
+                    before=timeout_before,
+                    after=timeout_after,
+                ),
+            ):
                 if change.key == "communication_disabled_until":
                     before_val = change.before
                     after_val = change.after
