@@ -68,3 +68,14 @@ class AiModeratorApiClient:
                 json={"event_id": event_id, "action": action, "status": status, "dry_run": dry_run, "timestamp": datetime.now(timezone.utc).isoformat()},
             )
         response.raise_for_status()
+
+    async def simulate(self, request: AiModerationRequest) -> dict[str, Any]:
+        """Classify a dashboard test message without writing a dataset event."""
+        async with httpx.AsyncClient(timeout=self._timeout, trust_env=False) as client:
+            response = await client.post(
+                f"{self._base_url}/moderation/simulate",
+                headers={"X-Internal-Api-Key": self._api_key},
+                json=self._moderation_payload(request),
+            )
+        response.raise_for_status()
+        return dict(response.json())

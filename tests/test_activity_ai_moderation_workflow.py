@@ -1,5 +1,6 @@
 import pytest
 import pytest_asyncio
+from pydantic import SecretStr
 
 import activity.server.dependencies as activity_dependencies
 import activity.server.services.ai_moderation_service as ai_service_module
@@ -106,3 +107,31 @@ async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(a
     audit = await service.list_review_audit(guild_id, "token", 20, 0)
     assert audit["total"] == 1
     assert audit["items"][0]["action"] == "RESOLVED"
+
+
+@pytest.mark.asyncio
+async def test_test_mode_simulation_never_creates_dataset_event(activity_ai_db, monkeypatch):
+    service = AiModerationService()
+    guild_id = 3002
+
+    async def module_access(*_): return {"id": "42"}, {"is_admin": True}
+    monkeypatch.setattr(service._access_service, "ensure_module_access", module_access)
+    monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
+
+    class _Config:
+        ai_moderator_api_url = "http://test"
+        ai_moderator_internal_api_key = SecretStr("key")
+        ai_moderator_request_timeout_seconds = 1
+
+    class _Client:
+        def __init__(self, *_): pass
+        async def simulate(self, _):
+            return {"risk_score": 50, "severity": 3, "confidence": 0.9, "latency_ms": 2, "decision_action": "WARN", "primary_label": "TOXIC", "labels": ["TOXIC"], "rule_matches": [], "execution_plan": ["WARN"]}
+
+    monkeypatch.setattr(ai_service_module, "get_config", lambda: _Config())
+    monkeypatch.setattr(ai_service_module, "AiModeratorApiClient", _Client)
+    await activity_ai_db.execute("INSERT INTO ai_moderation_settings (guild_id, policy_json) VALUES (?, '{\"test_mode\": true}'::jsonb)", (guild_id,))
+    result = await service.simulate(guild_id, "test message", "token")
+    assert result["dataset_event_created"] is False
+    assert result["model_action"] == "WARN"
+    assert result["policy_action"] == "WARN"

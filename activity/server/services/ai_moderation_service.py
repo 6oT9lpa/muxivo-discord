@@ -1,5 +1,6 @@
 """Activity-facing read/write service for per-guild AI moderation settings."""
 
+from datetime import datetime, timezone
 from typing import Any
 
 from activity.server.dependencies import get_db
@@ -9,6 +10,11 @@ from activity.server.schemas.ai_moderation_channels import AiModerationChannelsP
 from activity.server.schemas.ai_moderation_policy import AiModerationPolicyPayload
 from core.domain.default_ai_moderation_policy import default_ai_moderation_policy, merge_with_default_ai_moderation_policy
 from core.domain.ai_moderation_guild_policy import AiModerationGuildPolicy
+from application.dto.ai_moderation_request import AiModerationRequest
+from application.dto.ai_moderation_decision import AiModerationDecision
+from application.services.ai_moderation_policy_enforcer import AiModerationPolicyEnforcer
+from infrastructure.ai.ai_moderator_api_client import AiModeratorApiClient
+from infrastructure.config import get_config
 from infrastructure.logging import get_logger
 from psycopg.types.json import Jsonb
 from fastapi import HTTPException
@@ -236,3 +242,45 @@ class AiModerationService:
         await get_db().commit()
         logger.info("Saved AI moderation policy guild_id=%s", payload.guild_id)
         return await self.get_settings(payload.guild_id, access_token)
+
+    async def simulate(self, guild_id: int, message_text: str, access_token: str) -> dict[str, object]:
+        """Return an inspectable decision while making no Discord or dataset mutation."""
+        user, _ = await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator", "manage")
+        policy = await self._load_policy(guild_id)
+        if not policy.test_mode:
+            raise HTTPException(status_code=409, detail="Enable AI moderator test mode before running a simulation")
+        config = get_config()
+        api_key = config.ai_moderator_internal_api_key
+        if api_key is None:
+            logger.error("AI simulation unavailable because internal key is not configured")
+            raise HTTPException(status_code=503, detail="AI simulation is not configured")
+        request = AiModerationRequest(
+            guild_id=guild_id, channel_id=1, user_id=1, message_id=int(datetime.now(timezone.utc).timestamp() * 1_000_000),
+            raw_text=message_text, created_at=datetime.now(timezone.utc), metadata={"simulation": True, "requested_by": str(user["id"])},
+        )
+        raw = await AiModeratorApiClient(
+            config.ai_moderator_api_url, api_key.get_secret_value(), config.ai_moderator_request_timeout_seconds,
+        ).simulate(request)
+        model_decision = AiModerationDecision(
+            event_id=1, user_id=request.user_id, guild_id=guild_id, message_id=request.message_id,
+            risk_score=float(raw["risk_score"]), severity=int(raw.get("severity", 0)), confidence=float(raw.get("confidence", 0)),
+            latency_ms=int(raw.get("latency_ms", 0)), action=str(raw["decision_action"]), proposed_action=str(raw["decision_action"]),
+            primary_label=str(raw["primary_label"]), labels=tuple(str(label) for label in raw.get("labels", ())),
+            rule_matches=tuple(str(rule) for rule in raw.get("rule_matches", ())), execution_plan=tuple(str(action) for action in raw.get("execution_plan", ())), dry_run=True,
+        )
+        # Test mode prevents live execution; use a temporary copy with the flag
+        # disabled solely to disclose what the active policy would have selected.
+        policy_for_preview = policy.model_copy(update={"test_mode": False})
+        preview = AiModerationPolicyEnforcer().apply(request, model_decision, policy_for_preview)
+        return {
+            "simulation": True, "dataset_event_created": False,
+            "primary_label": model_decision.primary_label, "labels": list(model_decision.labels),
+            "risk_score": model_decision.risk_score, "severity": model_decision.severity, "confidence": model_decision.confidence,
+            "model_action": model_decision.action, "policy_action": preview.action, "execution_plan": list(preview.execution_plan),
+            "rule_matches": list(model_decision.rule_matches), "latency_ms": model_decision.latency_ms,
+        }
+
+    async def _load_policy(self, guild_id: int) -> AiModerationGuildPolicy:
+        row = await get_db().fetch_one("SELECT policy_json FROM ai_moderation_settings WHERE guild_id = ?", (guild_id,))
+        payload = dict(row["policy_json"]) if row and isinstance(row["policy_json"], dict) else {}
+        return merge_with_default_ai_moderation_policy(AiModerationGuildPolicy.model_validate(payload))
