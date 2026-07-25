@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pytest
 
 from presentation.cogs.logging_cog import LoggingCog
@@ -10,16 +12,33 @@ class _User:
 
 
 class _Guild:
+    def __init__(self, entries=()):
+        self.entries = entries
+
     async def audit_logs(self, **_kwargs):
-        if False:
-            yield None
+        for entry in self.entries:
+            yield entry
+
+
+class _Channel:
+    def __init__(self, channel_id: int):
+        self.id = channel_id
 
 
 class _Message:
-    def __init__(self, message_id: int, author: _User):
+    def __init__(self, message_id: int, author: _User, guild=None):
         self.id = message_id
         self.author = author
-        self.guild = _Guild()
+        self.guild = guild or _Guild()
+        self.channel = _Channel(300)
+
+
+class _AuditEntry:
+    def __init__(self, target, user, channel_id: int):
+        self.target = target
+        self.user = user
+        self.created_at = datetime.now(timezone.utc)
+        self.extra = type("Extra", (), {"channel": _Channel(channel_id)})()
 
 
 class _LoggingService:
@@ -56,3 +75,16 @@ async def test_self_delete_is_attributed_to_message_author() -> None:
     await cog.on_message_delete(_Message(50, author))
 
     assert service.deleted_by is author
+
+
+@pytest.mark.asyncio
+async def test_moderator_delete_is_attributed_from_matching_audit_entry() -> None:
+    author = _User(200)
+    moderator = _User(201)
+    service = _LoggingService()
+    guild = _Guild([_AuditEntry(author, moderator, channel_id=300)])
+    cog = LoggingCog(_Bot(_User(100)), service, None, None)
+
+    await cog.on_message_delete(_Message(50, author, guild))
+
+    assert service.deleted_by is moderator

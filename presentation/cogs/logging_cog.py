@@ -1,3 +1,5 @@
+import asyncio
+
 import disnake
 from disnake.ext import commands, tasks
 from datetime import datetime, timezone
@@ -66,24 +68,7 @@ class LoggingCog(commands.Cog):
         self._bot_deleted_message_ids.discard(message.id)
 
         if deleted_by is None:
-            try:
-                async for entry in message.guild.audit_logs(
-                    limit=10,
-                    action=disnake.AuditLogAction.message_delete
-                ):
-                    if entry.target.id != message.author.id:
-                        continue
-
-                    if (
-                        datetime.now(timezone.utc) - entry.created_at
-                    ).total_seconds() > 5:
-                        continue
-
-                    deleted_by = entry.user
-                    break
-
-            except Exception as e:
-                logger.warning("Failed to get audit log for message delete: %s", e)
+            deleted_by = await self._find_message_delete_actor(message)
 
         # Discord creates no audit-log record when someone deletes their own
         # message. In that case the message author is the only reliable actor.
@@ -94,6 +79,42 @@ class LoggingCog(commands.Cog):
             message,
             deleted_by=deleted_by
         )
+
+    async def _find_message_delete_actor(
+        self,
+        message: disnake.Message,
+    ) -> Optional[disnake.Member | disnake.User]:
+        """Resolve a moderator only from a matching, fresh audit-log entry.
+
+        Discord sends the gateway deletion event before its audit-log entry is
+        consistently visible. Retrying briefly prevents a moderator deletion
+        from being incorrectly shown as a self-deletion by the message author.
+        """
+        for attempt in range(3):
+            if attempt:
+                await asyncio.sleep(0.35)
+            try:
+                async for entry in message.guild.audit_logs(
+                    limit=20,
+                    action=disnake.AuditLogAction.message_delete,
+                ):
+                    target = getattr(entry, "target", None)
+                    if target is None or target.id != message.author.id:
+                        continue
+                    if (datetime.now(timezone.utc) - entry.created_at).total_seconds() > 15:
+                        continue
+
+                    # The audit entry includes the affected channel. Matching
+                    # it avoids assigning a nearby deletion from another
+                    # channel by the same moderator to this message.
+                    entry_channel = getattr(getattr(entry, "extra", None), "channel", None)
+                    if entry_channel is not None and entry_channel.id != message.channel.id:
+                        continue
+                    return entry.user
+            except Exception as exc:
+                logger.warning("Failed to get audit log for message delete: %s", exc)
+                return None
+        return None
 
     @commands.Cog.listener()
     async def on_raw_bulk_delete(self, payload: disnake.RawBulkMessageDeleteEvent):
