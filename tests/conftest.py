@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+from collections.abc import Mapping
 
 import pytest
 import pytest_asyncio
@@ -8,11 +9,20 @@ import pytest_asyncio
 from infrastructure.database import DatabaseManager
 
 
-# psycopg's async connection layer is incompatible with Windows' Proactor
-# loop. Set this before pytest-asyncio creates any fixture loops so optional
-# PostgreSQL integration tests run on developer machines as well as CI.
-if sys.platform == "win32":
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+def pytest_asyncio_loop_factories(*_) -> Mapping[str, object] | None:
+    """Offer psycopg-compatible loops without changing Python's global policy."""
+    if sys.platform == "win32":
+        return {"selector": asyncio.SelectorEventLoop}
+    return None
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Run only PostgreSQL integration tests on the Windows selector loop."""
+    if sys.platform != "win32":
+        return
+    for item in items:
+        if "postgres_test_db" in getattr(item, "fixturenames", ()):
+            item.add_marker(pytest.mark.asyncio(loop_factories=("selector",)))
 
 
 _RUNTIME_TABLES = """
