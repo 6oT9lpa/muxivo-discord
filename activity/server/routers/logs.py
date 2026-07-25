@@ -12,7 +12,7 @@ service = LogsService()
 @router.get("/api/logs")
 async def list_activity_logs(
     guild_id: int = Query(gt=0),
-    source: Literal["messages", "audit", "all", "moderator", "welcome", "channel", "activity"] = "all",
+    source: Literal["messages", "audit", "all", "moderator", "welcome", "channel", "activity", "ai"] = "all",
     event_type: Optional[str] = None,
     q: str = Query(default="", max_length=200),
     limit: int = Query(default=50, ge=1, le=200),

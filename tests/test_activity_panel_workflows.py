@@ -70,6 +70,32 @@ def test_dashboard_serializes_postgres_audit_datetime():
     assert event.created_at == "2026-07-01 23:54:21"
 
 
+def test_ai_classifier_log_presentation_preserves_decision_details():
+    row = LogsService._to_ai_moderation_log(
+        {
+            "id": 9,
+            "guild_id": 100,
+            "channel_id": 200,
+            "message_id": 300,
+            "user_id": 400,
+            "risk_score": 74,
+            "decision_action": "REVIEW",
+            "proposed_action": "DELETE",
+            "primary_label": "SCAM",
+            "labels_json": ["SCAM", "TOXIC"],
+            "status": "SUCCESS",
+            "latency_ms": 19,
+            "message_content": "Suspicious promotion",
+            "created_at": datetime(2026, 7, 26, 2, 40),
+        }
+    )
+
+    assert row["id"] == "ai-9"
+    assert row["event_type"] == "ai_moderation_decision"
+    assert row["details"]["fields"][2] == {"name": "Decision", "value": "REVIEW", "inline": True}
+    assert row["details"]["fields"][-1]["value"] == "Suspicious promotion"
+
+
 @pytest.mark.asyncio
 async def test_logs_service_lists_actor_dropdown_values(activity_db, monkeypatch):
     service = LogsService()
@@ -99,6 +125,38 @@ async def test_logs_service_lists_actor_dropdown_values(activity_db, monkeypatch
     assert {"id": "42", "name": "Admin"} in actors
     assert {"id": "77", "name": "Writer"} in actors
     assert {"id": "99", "name": "Member"} not in actors
+
+
+@pytest.mark.asyncio
+async def test_logs_service_includes_persisted_ai_classifier_decisions(activity_db, monkeypatch):
+    """Classifier output is visible in the same feed as the other server audit events."""
+    service = LogsService()
+    guild_id, channel_id, message_id, user_id = 987654, 987655, 987656, 987657
+
+    async def ensure_logs(*_):
+        return {"id": "42", "username": "admin"}, {"is_admin": True}
+
+    monkeypatch.setattr(service._access_service, "ensure_module_access", ensure_logs)
+    await activity_db.execute(
+        """INSERT INTO ai_moderation_events
+           (guild_id, channel_id, message_id, user_id, risk_score, decision_action, proposed_action, primary_label, labels_json, confidence, latency_ms, status)
+           VALUES (?, ?, ?, ?, ?, 'REVIEW', 'DELETE', 'SCAM', '[\"SCAM\", \"TOXIC\"]'::jsonb, ?, ?, 'SUCCESS')""",
+        (guild_id, channel_id, message_id, user_id, 74, 0.91, 19),
+    )
+    await activity_db.execute(
+        "INSERT INTO message_logs (guild_id, channel_id, message_id, author_id, author_name, content, event_type) VALUES (?, ?, ?, ?, ?, ?, 'message')",
+        (guild_id, channel_id, message_id, user_id, "Member", "Suspicious promotion",),
+    )
+    await activity_db.commit()
+
+    logs = await service.list_logs(guild_id, "all", None, "", 20, "token")
+    ai_only = await service.list_logs(guild_id, "ai", None, "SCAM", 20, "token")
+
+    decision = next(row for row in logs["audit"] if row["event_type"] == "ai_moderation_decision")
+    assert decision["actor_name"] == "AI classifier"
+    assert decision["details"]["fields"][2] == {"name": "Decision", "value": "REVIEW", "inline": True}
+    assert decision["details"]["fields"][-1]["value"] == "Suspicious promotion"
+    assert len(ai_only["audit"]) == 1
 
 
 @pytest.mark.asyncio

@@ -18,7 +18,7 @@ const pageSize = 20;
 const totalPages = computed(() => Math.max(1, Math.ceil((activity.auditPage?.total ?? 0) / pageSize)));
 const streamCount = computed(() => combinedRows.value.length);
 const auditCount = computed(() => activity.auditPage?.total ?? 0);
-const sourceOptions = computed(() => ["all", "moderator", "welcome", "message", "channel", "activity"].map((key) => ({ value: key === "message" ? "messages" : key, label: t(`logs.${key}`) })));
+const sourceOptions = computed(() => ["all", "ai", "moderator", "welcome", "message", "channel", "activity"].map((key) => ({ value: key === "message" ? "messages" : key, label: t(`logs.${key}`) })));
 const combinedRows = computed(() => [
   ...(activity.logs?.audit || []).map((row) => ({ ...row, source: "audit" })),
   ...(activity.logs?.messages || []).map((row) => ({ ...row, source: "message" })),

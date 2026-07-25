@@ -53,6 +53,7 @@ const eventKeys: Record<string, string> = {
   moderation_audit_kick: "logs.event.moderation_audit_kick",
   moderation_audit_ban: "logs.event.moderation_audit_ban",
   moderation_audit_unban: "logs.event.moderation_audit_unban",
+  ai_moderation_decision: "logs.event.ai_moderation_decision",
   activity_roles_synced: "logs.event.activity_roles_synced",
   activity_access_role_created: "logs.event.activity_access_role_created",
   activity_access_role_deleted: "logs.event.activity_access_role_deleted",
