@@ -23,10 +23,13 @@ class LabelingCog(commands.Cog):
         contexts=disnake.InteractionContextTypes(bot_dm=True),
     )
     async def labeling(self, ctx: disnake.ApplicationCommandInteraction) -> None:
-        """Reject a bare invocation with an explicit, private explanation."""
-        if not await self._require_dm(ctx):
-            return
-        await self._respond(ctx, "Choose a labeling action", "Use a /labeling subcommand to manage trust, roles, or labels.")
+        """Provide the parent command required by Discord for the subcommand group.
+
+        Disnake invokes this callback before a nested command.  It must not
+        acknowledge the interaction: otherwise the selected subcommand cannot
+        send its own response and Discord shows no management interface.
+        """
+        return
 
     @labeling.sub_command(name="manage", description="Open the private server-selection interface")
     async def manage(self, ctx: disnake.ApplicationCommandInteraction) -> None:
