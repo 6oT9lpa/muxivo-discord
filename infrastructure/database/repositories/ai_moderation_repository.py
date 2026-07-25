@@ -55,6 +55,14 @@ class AiModerationRepository(BaseRepository, AiModerationRepositoryInterface):
             (guild_id, channel_id, message_id, user_id, risk_score, action, proposed_action, primary_label, Jsonb(list(labels)), confidence, latency_ms, status),
         )
 
+    async def create_review_item(self, guild_id: int, channel_id: int, message_id: int, user_id: int, message_text: str, risk_score: float, severity: int, action: str, labels: tuple[str, ...]) -> None:
+        await self.execute(
+            """INSERT INTO ai_moderation_review_items (guild_id, channel_id, message_id, user_id, message_text, risk_score, severity, action, labels_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT (guild_id, message_id) DO NOTHING""",
+            (guild_id, channel_id, message_id, user_id, message_text[:8000], risk_score, severity, action, Jsonb(list(labels))),
+        )
+
     async def count_ai_deleted_messages(self, guild_id: int, user_id: int, since: datetime) -> int:
         row = await self.fetch_one(
             """SELECT COUNT(*) AS count FROM ai_moderation_events

@@ -23,6 +23,9 @@ class AiModerationRepositoryInterface(ABC):
     async def save_event(self, guild_id: int, channel_id: int, message_id: int, user_id: int, risk_score: float, action: str, proposed_action: str | None, primary_label: str, labels: tuple[str, ...], confidence: float, latency_ms: int, status: str) -> None: ...
 
     @abstractmethod
+    async def create_review_item(self, guild_id: int, channel_id: int, message_id: int, user_id: int, message_text: str, risk_score: float, severity: int, action: str, labels: tuple[str, ...]) -> None: ...
+
+    @abstractmethod
     async def count_ai_deleted_messages(self, guild_id: int, user_id: int, since: datetime) -> int: ...
 
     @abstractmethod

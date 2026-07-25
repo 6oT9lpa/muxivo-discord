@@ -255,6 +255,11 @@ class AiModerationCog(commands.Cog):
                 decision.primary_label, decision.labels, decision.confidence,
                 decision.latency_ms, status,
             )
+            if decision.action == "REVIEW":
+                await self._settings_service.create_review_item(
+                    request.guild_id, request.channel_id, request.message_id, request.user_id,
+                    request.raw_text, decision.risk_score, decision.severity, decision.proposed_action or decision.action, decision.labels,
+                )
         except Exception:
             logger.exception(
                 "Could not persist AI moderation event guild_id=%s message_id=%s",

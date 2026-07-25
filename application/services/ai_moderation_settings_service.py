@@ -32,3 +32,6 @@ class AiModerationSettingsService:
 
     async def record_event(self, guild_id: int, channel_id: int, message_id: int, user_id: int, risk_score: float, action: str, proposed_action: str | None, primary_label: str, labels: tuple[str, ...], confidence: float, latency_ms: int, status: str) -> None:
         await self._repository.save_event(guild_id, channel_id, message_id, user_id, risk_score, action, proposed_action, primary_label, labels, confidence, latency_ms, status)
+
+    async def create_review_item(self, guild_id: int, channel_id: int, message_id: int, user_id: int, message_text: str, risk_score: float, severity: int, action: str, labels: tuple[str, ...]) -> None:
+        await self._repository.create_review_item(guild_id, channel_id, message_id, user_id, message_text, risk_score, severity, action, labels)
