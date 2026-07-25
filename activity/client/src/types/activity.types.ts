@@ -204,6 +204,17 @@ export type AiModerationPolicy = {
   labels: Record<string, AiModerationLabelPolicy>;
   blacklist_action: AiModerationAction;
   unapproved_domain_action: AiModerationAction;
+  context_window_days: number;
+  repeat_offender_threshold: number;
+  repeat_offender_action: AiModerationAction;
+  escalation_enabled: boolean;
+  escalation_score_threshold: number;
+  escalation_half_life_days: number;
+  excluded_user_ids: string[];
+  excluded_role_ids: string[];
+  excluded_channel_ids: string[];
+  exclude_bots: boolean;
+  test_mode: boolean;
   enforcement_mode: "SHADOW" | "LIMITED" | "ELEVATED";
   limited_min_confidence: number;
   beta_enforcement_acknowledged: boolean;

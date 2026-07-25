@@ -23,9 +23,9 @@ const runtimeRows = computed(() => [
   [t("settings.message_retention"), t("settings.days", { value: activity.botSettings?.retention?.message_log_retention_days || "-" })],
   [t("settings.punishment_retention"), t("settings.days", { value: activity.botSettings?.retention?.punishment_retention_days || "-" })],
 ]);
-const enforcement = reactive<Pick<AiModerationPolicy, "enforcement_mode" | "limited_min_confidence" | "beta_enforcement_acknowledged" | "allow_automated_timeout" | "allow_automated_kick" | "allow_automated_ban">>({
+const enforcement = reactive<Pick<AiModerationPolicy, "enforcement_mode" | "limited_min_confidence" | "beta_enforcement_acknowledged" | "allow_automated_timeout" | "allow_automated_kick" | "allow_automated_ban" | "test_mode">>({
   enforcement_mode: "SHADOW", limited_min_confidence: 0.95, beta_enforcement_acknowledged: false,
-  allow_automated_timeout: false, allow_automated_kick: false, allow_automated_ban: false,
+  allow_automated_timeout: false, allow_automated_kick: false, allow_automated_ban: false, test_mode: false,
 });
 const elevatedEnabled = computed(() => enforcement.enforcement_mode === "ELEVATED" && enforcement.beta_enforcement_acknowledged);
 
@@ -37,6 +37,7 @@ watch(() => activity.aiModerator?.policy, (policy) => {
     enforcement_mode: policy.enforcement_mode ?? "SHADOW", limited_min_confidence: policy.limited_min_confidence ?? 0.95,
     beta_enforcement_acknowledged: policy.beta_enforcement_acknowledged ?? false, allow_automated_timeout: policy.allow_automated_timeout ?? false,
     allow_automated_kick: policy.allow_automated_kick ?? false, allow_automated_ban: policy.allow_automated_ban ?? false,
+    test_mode: policy.test_mode ?? false,
   });
 }, { immediate: true });
 
@@ -68,6 +69,7 @@ async function saveEnforcement() {
       <div class="ai-beta-warning" role="alert"><ShieldAlert :size="28" /><div><span>{{ $t("settings.ai_beta_eyebrow") }}</span><h3>{{ $t("settings.ai_beta_warning_title") }}</h3><p>{{ $t("settings.ai_beta_warning_text") }}</p></div></div>
       <section class="ai-beta-card"><header><div><span class="ai-moderation-kicker">{{ $t("settings.ai_beta_controls") }}</span><h3>{{ $t("settings.ai_beta_heading") }}</h3><p>{{ $t("settings.ai_beta_help") }}</p></div></header><div class="ai-beta-fields"><label><span>{{ $t("settings.ai_mode") }}</span><select v-model="enforcement.enforcement_mode"><option value="SHADOW">{{ $t("settings.ai_mode_shadow") }}</option><option value="LIMITED">{{ $t("settings.ai_mode_limited") }}</option><option value="ELEVATED">{{ $t("settings.ai_mode_elevated") }}</option></select></label><label><span>{{ $t("settings.ai_confidence") }}</span><input v-model.number="enforcement.limited_min_confidence" type="number" min="0.8" max="1" step="0.01" /></label></div></section>
       <section class="ai-beta-card"><header><div><span class="ai-moderation-kicker">{{ $t("settings.ai_beta_permissions") }}</span><h3>{{ $t("settings.ai_beta_permissions_title") }}</h3><p>{{ $t("settings.ai_beta_permissions_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>{{ $t("settings.ai_acknowledge") }}</strong><small>{{ $t("settings.ai_acknowledge_help") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.beta_enforcement_acknowledged }" role="switch" :aria-checked="enforcement.beta_enforcement_acknowledged" @click="enforcement.beta_enforcement_acknowledged = !enforcement.beta_enforcement_acknowledged"><i /></button></label><label v-for="item in [['allow_automated_timeout', 'settings.ai_timeout'], ['allow_automated_kick', 'settings.ai_kick'], ['allow_automated_ban', 'settings.ai_ban']] as const" :key="item[0]" class="ai-beta-toggle" :class="{ disabled: !elevatedEnabled }"><span><strong>{{ $t(item[1]) }}</strong><small>{{ $t('settings.ai_requires_elevated') }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement[item[0]] }" role="switch" :aria-checked="enforcement[item[0]]" :disabled="!elevatedEnabled" @click="enforcement[item[0]] = !enforcement[item[0]]"><i /></button></label></div></section>
+      <section class="ai-beta-card"><header><div><span class="ai-moderation-kicker">TEST MODE</span><h3>Simulation only</h3><p>Classify new messages and record the recommendation without deleting content or applying any punishment.</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>Enable AI moderator test mode</strong><small>All automatic Discord actions are suppressed while this switch is enabled.</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.test_mode }" role="switch" :aria-checked="enforcement.test_mode" @click="enforcement.test_mode = !enforcement.test_mode"><i /></button></label></div></section>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="saveEnforcement">{{ $t("settings.ai_save") }}</button></div>
     </div>
     <small v-if="status" class="ai-moderation-status" role="status">{{ status }}</small>

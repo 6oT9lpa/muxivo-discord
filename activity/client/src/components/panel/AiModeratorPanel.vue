@@ -6,7 +6,7 @@ import { useActivityStore } from "../../stores/activity.store";
 import type { AiModerationAction, AiModerationLabelPolicy, AiModerationPolicy } from "../../types/activity.types";
 import { t } from "../../i18n";
 
-type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "actions" | "risk" | "metrics";
+type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics";
 
 type LabelDefinition = {
   key: string;
@@ -20,6 +20,9 @@ const activeTab = ref<AiModeratorTab>("channels");
 const selectedChannels = ref<string[]>([]);
 const blacklistDraft = ref("");
 const domainDraft = ref("");
+const excludedUserDraft = ref("");
+const excludedRoleDraft = ref("");
+const excludedChannelDraft = ref("");
 const status = ref("");
 const settings = computed(() => activity.aiModerator);
 const actionOptions = computed(() => (["IGNORE", "LOG", "REVIEW", "WARN", "DELETE", "DELETE_WARN", "TIMEOUT", "KICK", "BAN"] as AiModerationAction[])
@@ -39,7 +42,7 @@ const labelDefinitions: LabelDefinition[] = [
     key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, min, max),
   })),
 ];
-const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
+const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
   .map((key) => ({ key, labelKey: `ai.tab.${key}` })));
 const moderationPolicy = reactive<AiModerationPolicy>(emptyPolicy());
 
@@ -59,6 +62,17 @@ function emptyPolicy(): AiModerationPolicy {
     labels: Object.fromEntries(labelDefinitions.map((item) => [item.key, { ...item.defaultPolicy }])),
     blacklist_action: "DELETE_WARN",
     unapproved_domain_action: "REVIEW",
+    context_window_days: 30,
+    repeat_offender_threshold: 3,
+    repeat_offender_action: "TIMEOUT",
+    escalation_enabled: true,
+    escalation_score_threshold: 3,
+    escalation_half_life_days: 30,
+    excluded_user_ids: [],
+    excluded_role_ids: [],
+    excluded_channel_ids: [],
+    exclude_bots: true,
+    test_mode: false,
     enforcement_mode: "SHADOW",
     limited_min_confidence: 0.95,
     beta_enforcement_acknowledged: false,
@@ -77,6 +91,17 @@ function clonePolicy(source: AiModerationPolicy | undefined): AiModerationPolicy
     labels: Object.fromEntries(labelDefinitions.map((item) => [item.key, { ...source.labels[item.key] ?? item.defaultPolicy }])),
     blacklist_action: source.blacklist_action,
     unapproved_domain_action: source.unapproved_domain_action,
+    context_window_days: source.context_window_days ?? 30,
+    repeat_offender_threshold: source.repeat_offender_threshold ?? 3,
+    repeat_offender_action: source.repeat_offender_action ?? "TIMEOUT",
+    escalation_enabled: source.escalation_enabled ?? true,
+    escalation_score_threshold: source.escalation_score_threshold ?? 3,
+    escalation_half_life_days: source.escalation_half_life_days ?? 30,
+    excluded_user_ids: [...(source.excluded_user_ids ?? [])],
+    excluded_role_ids: [...(source.excluded_role_ids ?? [])],
+    excluded_channel_ids: [...(source.excluded_channel_ids ?? [])],
+    exclude_bots: source.exclude_bots ?? true,
+    test_mode: source.test_mode ?? false,
     enforcement_mode: source.enforcement_mode ?? "SHADOW",
     limited_min_confidence: source.limited_min_confidence ?? 0.95,
     beta_enforcement_acknowledged: source.beta_enforcement_acknowledged ?? false,
@@ -165,6 +190,14 @@ function normalizeDomain(value: string): string {
 
 function removeValue(values: string[], value: string): string[] {
   return values.filter((item) => item !== value);
+}
+
+function addExcludedId(kind: "user" | "role" | "channel") {
+  const draft = kind === "user" ? excludedUserDraft : kind === "role" ? excludedRoleDraft : excludedChannelDraft;
+  const ids = unique(draft.value.split(",").map((value) => value.trim()).filter((value) => /^\d{1,20}$/.test(value)));
+  const property = kind === "user" ? "excluded_user_ids" : kind === "role" ? "excluded_role_ids" : "excluded_channel_ids";
+  moderationPolicy[property] = unique([...moderationPolicy[property], ...ids]);
+  draft.value = "";
 }
 </script>
 
@@ -256,6 +289,13 @@ function removeValue(values: string[], value: string): string[] {
       <div v-if="moderationPolicy.allowed_domains.length" class="ai-token-list"><span v-for="domain in moderationPolicy.allowed_domains" :key="domain" class="ai-token">{{ domain }}<button type="button" :aria-label="$t('ai.remove_value', { value: domain })" @click="moderationPolicy.allowed_domains = removeValue(moderationPolicy.allowed_domains, domain)"><Trash2 :size="14" /></button></span></div>
       <div v-else class="ai-empty-state"><Hash :size="22" /><span>{{ $t("ai.all_links_review") }}</span></div>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.domains_saved'))">{{ $t("ai.save_domains") }}</button></div>
+    </div>
+
+    <div v-else-if="activeTab === 'exceptions'" class="ai-moderation-workspace">
+      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">EXCLUSIONS</span><h3>AI moderator allowlist</h3><p>Excluded users, roles and channels are not evaluated or punished. Bot messages remain excluded by default.</p></div></div>
+      <div class="ai-policy-controls"><label><span>Exclude bot messages</span><input v-model="moderationPolicy.exclude_bots" type="checkbox" /></label><label><span>Escalate repeated offences</span><input v-model="moderationPolicy.escalation_enabled" type="checkbox" /></label><label><span>Escalation score</span><input v-model.number="moderationPolicy.escalation_score_threshold" type="number" min="0.1" max="1000" step="0.1" /></label><label><span>History half-life, days</span><input v-model.number="moderationPolicy.escalation_half_life_days" type="number" min="1" max="3650" step="1" /></label></div>
+      <div v-for="item in [['user', 'Users', excludedUserDraft, moderationPolicy.excluded_user_ids], ['role', 'Roles', excludedRoleDraft, moderationPolicy.excluded_role_ids], ['channel', 'Channels', excludedChannelDraft, moderationPolicy.excluded_channel_ids]] as const" :key="item[0]" class="ai-moderation-section-copy"><div><h3>{{ item[1] }}</h3><p>Discord IDs only; use comma-separated values.</p><div class="ai-token-input"><input v-model="item[2].value" inputmode="numeric" placeholder="Discord ID" @keyup.enter.prevent="addExcludedId(item[0])" /><button class="ghost-button" type="button" @click="addExcludedId(item[0])"><Plus :size="16" /> {{ $t('ai.add') }}</button></div><div v-if="item[3].length" class="ai-token-list"><span v-for="value in item[3]" :key="value" class="ai-token">{{ value }}<button type="button" :aria-label="`Remove ${value}`" @click="moderationPolicy[item[0] === 'user' ? 'excluded_user_ids' : item[0] === 'role' ? 'excluded_role_ids' : 'excluded_channel_ids'] = removeValue(item[3], value)"><Trash2 :size="14" /></button></span></div></div></div>
+      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy('AI moderator exclusions saved.')">Save exclusions</button></div>
     </div>
 
     <div v-else-if="activeTab === 'actions'" class="ai-moderation-workspace">
