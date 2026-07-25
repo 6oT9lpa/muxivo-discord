@@ -5068,8 +5068,8 @@ input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.46; }
 .access-role-identity > div { min-width: 0; }
 .access-role-identity strong { color: var(--text); }
 .access-role-identity span { display: block; overflow: hidden; color: var(--muted); font-size: 0.75rem; text-overflow: ellipsis; white-space: nowrap; }
-.access-role-icon { display: grid; flex: 0 0 34px; width: 34px; height: 34px; place-items: center; align-self: flex-start; color: #a5b4fc; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(129, 140, 248, 0.22); border-radius: 10px; }
-.access-role-icon svg { display: block; flex: 0 0 auto; width: 18px; height: 18px; }
+.access-role-icon { position: relative; display: block; flex: 0 0 34px; width: 34px; height: 34px; align-self: flex-start; color: #a5b4fc; line-height: 0; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(129, 140, 248, 0.22); border-radius: 10px; }
+.access-role-icon svg { position: absolute; top: 50%; left: 50%; display: block; width: 18px; height: 18px; margin: 0; transform: translate(-50%, -50%); }
 .access-role-summary { display: grid; grid-template-columns: auto auto; column-gap: 5px; align-items: center; margin-left: auto; color: var(--soft); }
 .access-role-summary svg { grid-row: span 2; color: var(--accent-2); }
 .access-role-summary strong { color: var(--text); font-size: 0.82rem; }
