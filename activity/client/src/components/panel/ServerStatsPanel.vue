@@ -2,6 +2,7 @@
 import { computed, ref, watch } from "vue";
 import { useActivityStore } from "../../stores/activity.store";
 import StatCard from "./StatCard.vue";
+import PanelTabNav from "./PanelTabNav.vue";
 import { t } from "../../i18n";
 
 type StatsTab = "summary" | "chart" | "users" | "channels";
@@ -54,11 +55,7 @@ watch(userSearch, (value) => {
     </div>
   </section>
 
-  <section class="panel-section module-tabs-panel">
-    <nav class="ai-moderation-nav" :aria-label="$t('module.server-stats')">
-      <button v-for="tab in tabs" :key="tab.key" type="button" :class="{ active: activeTab === tab.key }" @click="activeTab = tab.key">{{ tab.label }}</button>
-    </nav>
-  </section>
+  <section class="panel-section module-tabs-panel"><PanelTabNav v-model="activeTab" :tabs="tabs" :aria-label="$t('module.server-stats')" /></section>
 
   <section v-if="activeTab === 'summary'" class="panel-section module-content-panel stats-summary-panel">
     <div class="stats-grid"><StatCard v-for="metric in summaryCards" :key="metric.key" :metric="metric" /></div>

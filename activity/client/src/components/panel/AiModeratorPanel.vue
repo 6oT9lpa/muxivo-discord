@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from "vue";
 import { Check, ChevronDown, Hash, Plus, ShieldCheck, Trash2 } from "@lucide/vue";
 import RevealOnScroll from "../common/RevealOnScroll.vue";
+import PanelTabNav from "./PanelTabNav.vue";
 import { useActivityStore } from "../../stores/activity.store";
 import type { AiModerationAction, AiModerationLabelPolicy, AiModerationPolicy } from "../../types/activity.types";
 import { t } from "../../i18n";
@@ -119,10 +120,6 @@ function clonePolicy(source: AiModerationPolicy | undefined): AiModerationPolicy
   };
 }
 
-function tabLetters(label: string) {
-  return Array.from(label);
-}
-
 function policyFor(label: string): AiModerationLabelPolicy {
   return moderationPolicy.labels[label];
 }
@@ -165,7 +162,7 @@ async function savePolicy(message: string) {
 }
 
 async function loadMetrics() {
-  try { await activity.loadAiModeratorMetrics(); } catch (error) { status.value = error instanceof Error ? error.message : "Metrics are unavailable"; }
+  try { await activity.loadAiModeratorMetrics(); } catch (error) { status.value = error instanceof Error ? error.message : t("ai.metrics_unavailable"); }
 }
 
 function addBlacklistWords() {
@@ -225,23 +222,7 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
   </RevealOnScroll>
 
   <RevealOnScroll tag="section" class="panel-section module-tabs-panel ai-moderator-tabs" :delay="35">
-    <nav class="ai-moderation-nav" :aria-label="$t('ai.settings')">
-      <button
-        v-for="tab in tabs"
-        :key="tab.key"
-        type="button"
-        :class="{ active: activeTab === tab.key }"
-        :aria-current="activeTab === tab.key ? 'page' : undefined"
-        @click="activeTab = tab.key"
-      >
-        <span
-          v-for="(letter, index) in tabLetters(tab.key === 'review' ? tab.labelKey : $t(tab.labelKey))"
-          :key="`${tab.key}-${index}`"
-          class="ai-moderation-nav-letter"
-          :style="{ transitionDelay: `${index * 22}ms` }"
-        >{{ letter === " " ? "\u00a0" : letter }}</span>
-      </button>
-    </nav>
+    <PanelTabNav v-model="activeTab" :tabs="tabs.map((tab) => ({ key: tab.key, label: $t(tab.labelKey) }))" :aria-label="$t('ai.settings')" />
   </RevealOnScroll>
 
   <RevealOnScroll tag="section" class="panel-section module-content-panel" :delay="60">
@@ -331,23 +312,10 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.risk_saved'))">{{ $t("ai.save_risk") }}</button></div>
     </div>
 
-    <div v-else-if="activeTab === 'enforcement'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">BETA ENFORCEMENT</span><h3>Limited enforcement</h3><p>Shadow mode records recommendations only. Limited mode can delete high-confidence hard-rule invite/scam cases and warn for soft violations.</p></div></div>
-      <div class="settings-list">
-        <article><strong>Mode</strong><select v-model="moderationPolicy.enforcement_mode"><option value="SHADOW">Shadow — no automatic punishment</option><option value="LIMITED">Limited — DELETE/WARN only</option><option value="ELEVATED">Elevated — requires explicit toggles</option></select></article>
-        <article><strong>Limited confidence</strong><input v-model.number="moderationPolicy.limited_min_confidence" type="number" min="0.8" max="1" step="0.01" /></article>
-        <article><strong>I accept beta responsibility</strong><input v-model="moderationPolicy.beta_enforcement_acknowledged" type="checkbox" /></article>
-        <article><strong>Allow automatic timeout</strong><input v-model="moderationPolicy.allow_automated_timeout" :disabled="!moderationPolicy.beta_enforcement_acknowledged || moderationPolicy.enforcement_mode !== 'ELEVATED'" type="checkbox" /></article>
-        <article><strong>Allow automatic kick</strong><input v-model="moderationPolicy.allow_automated_kick" :disabled="!moderationPolicy.beta_enforcement_acknowledged || moderationPolicy.enforcement_mode !== 'ELEVATED'" type="checkbox" /></article>
-        <article><strong>Allow automatic ban</strong><input v-model="moderationPolicy.allow_automated_ban" :disabled="!moderationPolicy.beta_enforcement_acknowledged || moderationPolicy.enforcement_mode !== 'ELEVATED'" type="checkbox" /></article>
-      </div>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy('Enforcement settings saved.')">Save enforcement</button></div>
-    </div>
-
     <div v-else class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">PRIVATE METRICS</span><h3>Shadow mode quality</h3><p>Visible only after a trusted owner or ADMIN grants access via DM.</p></div><button class="ghost-button" type="button" @click="loadMetrics">Refresh</button></div>
-      <div v-if="activity.aiModeratorMetrics" class="ai-policy-summary"><article><strong>{{ activity.aiModeratorMetrics.would_delete }}</strong><span>Would delete</span></article><article><strong>{{ activity.aiModeratorMetrics.review_count }}</strong><span>Sent to review</span></article><article><strong>{{ activity.aiModeratorMetrics.average_latency_ms }} ms</strong><span>Average latency</span></article><article><strong>{{ activity.aiModeratorMetrics.safe_false_positive_rate === null ? '—' : `${(activity.aiModeratorMetrics.safe_false_positive_rate * 100).toFixed(1)}%` }}</strong><span>SAFE false positives</span></article></div>
-      <div v-if="activity.aiModeratorMetrics" class="settings-list"><article><strong>Frequently confused classes</strong><span>{{ activity.aiModeratorMetrics.confused_classes.map((item) => `${item.name}: ${item.count}`).join(', ') || 'No moderator corrections yet' }}</span></article><article><strong>Noisy rules</strong><span>{{ activity.aiModeratorMetrics.noisy_rules.map((item) => `${item.name}: ${item.count}`).join(', ') || 'No events yet' }}</span></article><article><strong>Moderator correction speed</strong><span>{{ activity.aiModeratorMetrics.moderator_correction_seconds === null ? '—' : `${activity.aiModeratorMetrics.moderator_correction_seconds}s` }}</span></article></div>
+      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">{{ $t("ai.metrics_eyebrow") }}</span><h3>{{ $t("ai.metrics_heading") }}</h3><p>{{ $t("ai.metrics_help") }}</p></div><button class="ghost-button" type="button" @click="loadMetrics">{{ $t("common.refresh") }}</button></div>
+      <div v-if="activity.aiModeratorMetrics" class="ai-policy-summary"><article><strong>{{ activity.aiModeratorMetrics.would_delete }}</strong><span>{{ $t("ai.metrics_would_delete") }}</span></article><article><strong>{{ activity.aiModeratorMetrics.review_count }}</strong><span>{{ $t("ai.metrics_sent_to_review") }}</span></article><article><strong>{{ activity.aiModeratorMetrics.average_latency_ms }} ms</strong><span>{{ $t("ai.metrics_average_latency") }}</span></article><article><strong>{{ activity.aiModeratorMetrics.safe_false_positive_rate === null ? '—' : `${(activity.aiModeratorMetrics.safe_false_positive_rate * 100).toFixed(1)}%` }}</strong><span>{{ $t("ai.metrics_safe_false_positives") }}</span></article></div>
+      <div v-if="activity.aiModeratorMetrics" class="settings-list"><article><strong>{{ $t("ai.metrics_confused_classes") }}</strong><span>{{ activity.aiModeratorMetrics.confused_classes.map((item) => `${item.name}: ${item.count}`).join(', ') || $t("ai.metrics_no_corrections") }}</span></article><article><strong>{{ $t("ai.metrics_noisy_rules") }}</strong><span>{{ activity.aiModeratorMetrics.noisy_rules.map((item) => `${item.name}: ${item.count}`).join(', ') || $t("ai.metrics_no_events") }}</span></article><article><strong>{{ $t("ai.metrics_correction_speed") }}</strong><span>{{ activity.aiModeratorMetrics.moderator_correction_seconds === null ? '—' : $t("ai.metrics_seconds", { value: activity.aiModeratorMetrics.moderator_correction_seconds }) }}</span></article></div>
     </div>
 
     <p v-if="status" class="ai-moderation-status" role="status">{{ status }}</p>

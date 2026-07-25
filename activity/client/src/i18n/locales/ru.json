@@ -189,8 +189,8 @@
   "module.creator-alerts": "Анонсы авторов",
   "module.dev-blog": "Блог разработчиков",
   "module.ai-moderator": "AI-модератор",
-  "module.ai-review": "Проверка решений",
-  "module.ai-review.description": "Проверяйте и исправляйте решения доверенной AI-модерации.",
+  "module.ai-review": "Проверка решений AI",
+  "module.ai-review.description": "Проверяйте и исправляйте решения AI-модерации с прозрачной историей корректировок.",
   "module.logs": "Журналы",
   "module.server-stats": "Статистика сервера",
   "module.voice-rooms": "Голосовые комнаты",
@@ -845,4 +845,66 @@
   "health.operational": "работает",
   "health.degraded": "ограниченная работа",
   "health.every_seconds": "Каждые {seconds} сек."
+  ,"access.role_catalog": "Роли доступа"
+  ,"access.role_count": "Ролей: {count} · своих: {custom}"
+  ,"access.role_catalog_help": "Назначайте каждой роли понятный набор возможностей панели."
+  ,"access.tabs_granted": "вкладок доступно"
+  ,"logs.stream_eyebrow": "Живая активность"
+  ,"logs.stream_heading": "Последние события"
+  ,"logs.stream_description": "Сообщения и действия сервера по мере появления."
+  ,"logs.stream_count": "Событий в потоке: {count}"
+  ,"logs.history_eyebrow": "Архив аудита"
+  ,"logs.history_heading": "Результаты поиска"
+  ,"logs.live": "в эфире"
+  ,"logs.empty": "По текущим фильтрам записей аудита нет."
+  ,"settings.ai_test_mode": "Тестовый режим"
+  ,"settings.ai_test_heading": "Живой прогон без действий"
+  ,"settings.ai_test_help": "Сообщения классифицируются обычно, а в журнале видно каждое рассчитанное решение. Действия в Discord, личные предупреждения и записи наказаний не создаются."
+  ,"settings.ai_test_toggle": "Включить тестовый режим AI-модератора"
+  ,"settings.ai_test_toggle_help": "Используйте реальные сообщения сервера, чтобы безопасно проверить активную политику."
+  ,"review.eyebrow": "Доверенная модерация"
+  ,"review.heading": "Проверка решений AI"
+  ,"review.description": "Просматривайте неоднозначные решения, исправляйте их и сохраняйте прозрачный аудит."
+  ,"review.queue": "Очередь решений"
+  ,"review.audit": "История коррекций"
+  ,"review.open_decisions": "открытых решений"
+  ,"review.status": "Статус"
+  ,"review.open": "Открыто"
+  ,"review.resolved": "Решено"
+  ,"review.decision_count": "Решений: {count}"
+  ,"review.decision": "Решение #{id} · {action}"
+  ,"review.risk_severity": "Риск {risk}/100 · уровень {severity}"
+  ,"review.labels": "Метки: {labels}"
+  ,"review.message": "Сообщение {id}"
+  ,"review.edit_decision": "Изменить решение"
+  ,"review.empty_queue": "Нет решений, которые требуют проверки."
+  ,"review.editing": "Изменение решения"
+  ,"review.close": "Закрыть"
+  ,"review.message_label": "Сообщение"
+  ,"review.risk": "Риск"
+  ,"review.severity": "Уровень"
+  ,"review.action": "Действие"
+  ,"review.save": "Сохранить коррекцию"
+  ,"review.saved": "Коррекция решения сохранена."
+  ,"review.save_failed": "Не удалось сохранить коррекцию решения."
+  ,"review.queue_load_failed": "Не удалось загрузить очередь решений."
+  ,"review.audit_load_failed": "Не удалось загрузить историю коррекций."
+  ,"review.safe": "SAFE"
+  ,"review.audit_entry": "Проверка #{id} · {action}"
+  ,"review.moderator_message": "Модератор {moderator} · сообщение {message}"
+  ,"review.empty_audit": "Истории коррекций пока нет."
+  ,"ai.metrics_unavailable": "Метрики недоступны."
+  ,"ai.metrics_eyebrow": "Закрытые метрики"
+  ,"ai.metrics_heading": "Качество Shadow-режима"
+  ,"ai.metrics_help": "Видимы после того, как доверенный владелец или администратор выдаст доступ."
+  ,"ai.metrics_would_delete": "Было бы удалено"
+  ,"ai.metrics_sent_to_review": "Отправлено на проверку"
+  ,"ai.metrics_average_latency": "Средняя задержка"
+  ,"ai.metrics_safe_false_positives": "ложные SAFE"
+  ,"ai.metrics_confused_classes": "Часто путаемые классы"
+  ,"ai.metrics_no_corrections": "Коррекций модераторов пока нет"
+  ,"ai.metrics_noisy_rules": "Шумные правила"
+  ,"ai.metrics_no_events": "Событий пока нет"
+  ,"ai.metrics_correction_speed": "Скорость коррекции модератором"
+  ,"ai.metrics_seconds": "{value} с"
 }

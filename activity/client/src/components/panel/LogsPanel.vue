@@ -2,7 +2,8 @@
 import { computed, onMounted, ref } from "vue";
 import { useActivityStore } from "../../stores/activity.store";
 import { t, useI18n } from "../../i18n";
-import { logDetailRows, logEventTitle } from "../../utils/logPresentation";
+import { logDetailRows, logEventTitle, parseLogEmbed } from "../../utils/logPresentation";
+import LogEmbedCard from "./LogEmbedCard.vue";
 
 const activity = useActivityStore();
 const { locale } = useI18n();
@@ -14,6 +15,8 @@ const source = ref("all");
 const page = ref(0);
 const pageSize = 20;
 const totalPages = computed(() => Math.max(1, Math.ceil((activity.auditPage?.total ?? 0) / pageSize)));
+const streamCount = computed(() => combinedRows.value.length);
+const auditCount = computed(() => activity.auditPage?.total ?? 0);
 const sourceOptions = computed(() => ["all", "moderator", "welcome", "message", "channel", "activity"].map((key) => ({ value: key === "message" ? "messages" : key, label: t(`logs.${key}`) })));
 const combinedRows = computed(() => [
   ...(activity.logs?.audit || []).map((row) => ({ ...row, source: "audit" })),
@@ -54,6 +57,10 @@ function timeLabel(value: unknown) {
   return parsed.toLocaleString(locale.value === "ru" ? "ru-RU" : "en-US");
 }
 
+function embedFor(row: Record<string, unknown>) {
+  return parseLogEmbed(row.details ?? row.content);
+}
+
 onMounted(() => {
   void loadAudit();
 });
@@ -89,11 +96,16 @@ onMounted(() => {
   </section>
 
   <section class="panel-section module-content-panel logs-content-panel">
-    <div class="record-list compact-list">
+    <header class="logs-content-header">
+      <div><span>{{ $t("logs.stream_eyebrow") }}</span><h3>{{ $t("logs.stream_heading") }}</h3><p>{{ $t("logs.stream_description") }}</p></div>
+      <div class="logs-count"><span class="health-live-dot" /><strong>{{ $t("logs.stream_count", { count: streamCount }) }}</strong><small>{{ $t("logs.live") }}</small></div>
+    </header>
+    <div v-if="combinedRows.length" class="record-list compact-list log-feed-list">
       <article v-for="row in combinedRows" :key="`log-${row.source}-${row.id}`" class="log-record">
-        <strong>{{ logEventTitle(row.event_type) }}</strong>
-        <span>{{ actorLabel(row) }}</span>
-        <dl class="log-detail-list">
+          <strong>{{ logEventTitle(row.event_type) }}</strong>
+          <span>{{ actorLabel(row) }}</span>
+          <LogEmbedCard v-if="embedFor(row)" :embed="embedFor(row)!" />
+          <dl v-if="!embedFor(row)" class="log-detail-list">
           <div v-for="detail in logDetailRows(row)" :key="detail.key">
             <dt>{{ detail.label }}</dt>
             <dd>{{ detail.value }}</dd>
@@ -103,11 +115,16 @@ onMounted(() => {
       </article>
     </div>
 
-    <div class="record-list">
+    <header class="logs-content-header audit-history-header">
+      <div><span>{{ $t("logs.history_eyebrow") }}</span><h3>{{ $t("logs.history_heading") }}</h3></div>
+      <strong>{{ auditCount }}</strong>
+    </header>
+    <div v-if="activity.auditPage?.items?.length" class="record-list log-feed-list">
       <article v-for="row in activity.auditPage?.items || []" :key="`audit-${row.id}`" class="log-record">
-        <strong>{{ logEventTitle(row.event_type) }}</strong>
-        <span>{{ actorLabel(row as unknown as Record<string, unknown>) }}</span>
-        <dl class="log-detail-list">
+          <strong>{{ logEventTitle(row.event_type) }}</strong>
+          <span>{{ actorLabel(row as unknown as Record<string, unknown>) }}</span>
+          <LogEmbedCard v-if="embedFor(row as unknown as Record<string, unknown>)" :embed="embedFor(row as unknown as Record<string, unknown>)!" />
+          <dl v-if="!embedFor(row as unknown as Record<string, unknown>)" class="log-detail-list">
           <div v-for="detail in logDetailRows(row as unknown as Record<string, unknown>)" :key="detail.key">
             <dt>{{ detail.label }}</dt>
             <dd>{{ detail.value }}</dd>
@@ -116,6 +133,7 @@ onMounted(() => {
         <small>{{ timeLabel(row.created_at) }}</small>
       </article>
     </div>
+    <p v-else class="logs-empty-state">{{ $t("logs.empty") }}</p>
     <div class="pagination-row">
       <button class="ghost-button compact" type="button" :disabled="page === 0" @click="goPage(-1)">{{ $t("logs.previous") }}</button>
       <span>{{ page + 1 }} / {{ totalPages }}</span>

@@ -6,6 +6,23 @@ export type LogDetail = {
   value: string;
 };
 
+export type LogEmbedField = {
+  name: string;
+  value: string;
+  inline: boolean;
+};
+
+export type LogEmbed = {
+  title?: string;
+  description?: string;
+  content?: string;
+  before?: string;
+  after?: string;
+  fields: LogEmbedField[];
+  footer?: string;
+  color?: string;
+};
+
 const eventKeys: Record<string, string> = {
   message: "logs.event.message",
   message_edit: "logs.event.message_edit",
@@ -143,6 +160,29 @@ export function parseLogDetails(value: unknown): Record<string, unknown> & { _ra
   }
 }
 
+/** Normalizes Discord's serialized embed payload for the dashboard card. */
+export function parseLogEmbed(value: unknown): LogEmbed | null {
+  const details = parseLogDetails(value);
+  const fields = Array.isArray(details.fields)
+    ? details.fields.flatMap((field) => {
+        if (!field || typeof field !== "object") return [];
+        const record = field as Record<string, unknown>;
+        const name = String(record.name ?? "").trim();
+        const fieldValue = formatDetailValue(record.value);
+        return name || fieldValue ? [{ name: name || t("logs.detail.details"), value: fieldValue, inline: Boolean(record.inline) }] : [];
+      })
+    : [];
+  const title = stringValue(details.title);
+  const description = stringValue(details.description);
+  const content = stringValue(details.content);
+  const before = stringValue(details.before);
+  const after = stringValue(details.after);
+  const footer = footerValue(details.footer);
+  const color = stringValue(details.color);
+  const hasEmbedShape = Boolean(title || description || content || before || after || footer || fields.length);
+  return hasEmbedShape ? { title, description, content, before, after, footer, color, fields } : null;
+}
+
 function formatDetailValue(value: unknown): string {
   if (Array.isArray(value)) return value.map(formatDetailValue).filter(Boolean).join(", ");
   if (value && typeof value === "object") {
@@ -158,6 +198,18 @@ function formatDetailValue(value: unknown): string {
   }
   if (typeof value === "boolean") return value ? t("common.yes") : t("common.no");
   return String(value);
+}
+
+function stringValue(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  const text = formatDetailValue(value).trim();
+  return text || undefined;
+}
+
+function footerValue(value: unknown): string | undefined {
+  if (!value) return undefined;
+  if (typeof value === "object") return stringValue((value as Record<string, unknown>).text ?? value);
+  return stringValue(value);
 }
 
 function humanizeKey(value: string): string {
