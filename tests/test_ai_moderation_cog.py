@@ -49,6 +49,15 @@ class _Punishments:
     async def add_punishment(self, *_args, **_kwargs): return 1
 
 
+class _SentChannel:
+    def __init__(self, channel_id=2):
+        self.id = channel_id
+        self.embeds = []
+
+    async def send(self, *, embed):
+        self.embeds.append(embed)
+
+
 class _Events:
     def __init__(self, settings): self._settings = settings
     async def count_ai_deleted_messages(self, guild_id, user_id, _since):
@@ -94,6 +103,25 @@ async def test_decision_embed_is_attempted_when_event_persistence_fails() -> Non
     await cog.handle_decision(request, decision)
 
     assert sent == [(4, "REVIEW", "SUCCESS")]
+
+
+@pytest.mark.asyncio
+async def test_decision_embed_uses_resolved_fallback_destination() -> None:
+    settings = _Settings(); queue = _Queue(); punishments = _Punishments()
+    cog = AiModerationCog(_Bot(), settings, _ChannelService(), queue, UserModerationContextBuilder(punishments, _Events(settings)), punishments)
+    channel = _SentChannel()
+
+    async def fallback_destination(*_):
+        return [("source_channel", channel)]
+
+    cog._resolve_log_channels = fallback_destination
+    request = AiModerationRequest(guild_id=1, channel_id=2, user_id=3, message_id=4, raw_text="unsafe", created_at=datetime.now(timezone.utc))
+    decision = AiModerationDecision(event_id=1, guild_id=1, user_id=3, message_id=4, risk_score=90, action="REVIEW", primary_label="SCAM", labels=("SCAM",), execution_plan=("REVIEW",), dry_run=True)
+
+    await cog._send_log(_Guild(1), request, decision, "SUCCESS")
+
+    assert len(channel.embeds) == 1
+    assert channel.embeds[0].title == "AI moderation decision"
 
 
 @pytest.mark.asyncio

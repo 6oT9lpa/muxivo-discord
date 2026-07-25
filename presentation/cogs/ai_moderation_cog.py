@@ -435,16 +435,6 @@ class AiModerationCog(commands.Cog):
         )
 
     async def _send_log(self, guild: disnake.Guild, request: AiModerationRequest, decision: AiModerationDecision, status: str) -> None:
-        channel_id = await self._channel_service.get_purpose_channel(guild.id, ChannelPurpose.AI_MODERATION_LOG)
-        channel = guild.get_channel(channel_id) if channel_id else None
-        if channel is None and channel_id:
-            try:
-                channel = await guild.fetch_channel(channel_id)
-            except (disnake.NotFound, disnake.Forbidden, disnake.HTTPException):
-                logger.warning("AI moderation log channel is unavailable guild_id=%s channel_id=%s", guild.id, channel_id)
-        if not isinstance(channel, (disnake.TextChannel, disnake.NewsChannel)):
-            logger.warning("AI moderation log channel is not configured guild_id=%s", guild.id)
-            return
         content = request.raw_text.strip() or ("[attachment]" if request.has_attachments else "[empty message]")
         content = content[:1_000]
         jump_url = f"https://discord.com/channels/{guild.id}/{request.channel_id}/{request.message_id}"
@@ -493,10 +483,81 @@ class AiModerationCog(commands.Cog):
             .set_footer(f"{execution_context} • {status.title()} • {decision.latency_ms} ms")
             .build()
         )
-        try:
-            await channel.send(embed=embed)
-        except (disnake.Forbidden, disnake.HTTPException):
-            logger.exception("Could not send AI moderation embed guild_id=%s channel_id=%s", guild.id, channel.id)
+        for purpose, channel in await self._resolve_log_channels(guild, request.channel_id):
+            try:
+                await channel.send(embed=embed)
+            except (disnake.Forbidden, disnake.HTTPException):
+                logger.exception(
+                    "Could not send AI moderation embed guild_id=%s channel_id=%s purpose=%s",
+                    guild.id,
+                    channel.id,
+                    purpose,
+                )
+                continue
+            if purpose != ChannelPurpose.AI_MODERATION_LOG.value:
+                logger.warning(
+                    "AI moderation log used fallback destination guild_id=%s channel_id=%s purpose=%s",
+                    guild.id,
+                    channel.id,
+                    purpose,
+                )
+            return
+        logger.error("AI moderation embed could not be delivered guild_id=%s message_id=%s", guild.id, request.message_id)
+
+    async def _resolve_log_channels(
+        self,
+        guild: disnake.Guild,
+        source_channel_id: int,
+    ) -> list[tuple[str, disnake.TextChannel | disnake.NewsChannel]]:
+        """Resolve ordered, unique destinations so a classifier response never disappears silently."""
+        candidates: list[tuple[str, int]] = []
+        for purpose in (
+            ChannelPurpose.AI_MODERATION_LOG,
+            ChannelPurpose.MOD_LOG,
+            ChannelPurpose.MESSAGE_LOG,
+        ):
+            channel_id = await self._channel_service.get_purpose_channel(guild.id, purpose)
+            if channel_id:
+                candidates.append((purpose.value, channel_id))
+        candidates.append(("source_channel", source_channel_id))
+
+        resolved: list[tuple[str, disnake.TextChannel | disnake.NewsChannel]] = []
+        seen_channel_ids: set[int] = set()
+        for purpose, channel_id in candidates:
+            if channel_id in seen_channel_ids:
+                continue
+            seen_channel_ids.add(channel_id)
+            channel = guild.get_channel(channel_id)
+            if channel is None:
+                fetch_channel = getattr(guild, "fetch_channel", None)
+                if fetch_channel is None:
+                    logger.warning(
+                        "AI moderation log destination is absent from the guild cache guild_id=%s channel_id=%s purpose=%s",
+                        guild.id,
+                        channel_id,
+                        purpose,
+                    )
+                    continue
+                try:
+                    channel = await fetch_channel(channel_id)
+                except (disnake.NotFound, disnake.Forbidden, disnake.HTTPException):
+                    logger.warning(
+                        "AI moderation log destination is unavailable guild_id=%s channel_id=%s purpose=%s",
+                        guild.id,
+                        channel_id,
+                        purpose,
+                    )
+                    continue
+            if isinstance(channel, (disnake.TextChannel, disnake.NewsChannel)):
+                resolved.append((purpose, channel))
+            else:
+                logger.warning(
+                    "AI moderation log destination is not text-based guild_id=%s channel_id=%s purpose=%s",
+                    guild.id,
+                    channel_id,
+                    purpose,
+                )
+        return resolved
 
     @staticmethod
     def _action_presentation(action: str) -> tuple[str, str, int]:
