@@ -130,9 +130,18 @@ class DiscordBot(commands.Bot):
         logger.error("Application command error command=%s error=%s", getattr(interaction, "command", None), error, exc_info=True)
         if interaction.response.is_done():
             return
+        if isinstance(error, commands.NoPrivateMessage):
+            title = "Команда доступна только в личных сообщениях"
+            description = "Откройте личные сообщения с ботом и повторите команду там."
+        elif isinstance(error, commands.CheckFailure):
+            title = "Недостаточно прав"
+            description = "У вас нет доступа к этой команде."
+        else:
+            title = "Ошибка команды"
+            description = "Команда не выполнена. Детали записаны в журнал."
         embed = disnake.Embed(
-            title="Ошибка команды",
-            description="Команда не выполнена. Детали записаны в журнал.",
+            title=title,
+            description=description,
             color=disnake.Color.red(),
         )
         try:
