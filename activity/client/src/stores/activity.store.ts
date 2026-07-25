@@ -38,6 +38,7 @@ import {
   saveAiModeratorChannels,
   saveAiModeratorPolicy,
   saveAiModeratorReview,
+  simulateAiModerator,
   saveActivityAccessRoleModules,
   saveActivitySyncedRoleAssignments,
   saveChannelPurpose,
@@ -62,6 +63,7 @@ import type {
   AiModerationReviewPage,
   AiModerationReviewAuditPage,
   AiModerationReviewItem,
+  AiModerationSimulation,
   ActivityAccessRole,
   ActivityAuditPage,
   ActivityDashboardResponse,
@@ -134,6 +136,7 @@ type State = {
     aiModeratorMetrics: AiModeratorMetrics | null;
     aiModeratorReviews: AiModerationReviewPage | null;
     aiModeratorReviewAudit: AiModerationReviewAuditPage | null;
+    aiModeratorSimulation: AiModerationSimulation | null;
   discordSdk: DiscordSDK | null;
   auth: Auth | null;
 };
@@ -181,6 +184,7 @@ export const useActivityStore = defineStore("activity", {
       aiModeratorMetrics: null,
       aiModeratorReviews: null,
       aiModeratorReviewAudit: null,
+      aiModeratorSimulation: null,
     discordSdk: null,
     auth: null,
   }),
@@ -516,6 +520,10 @@ export const useActivityStore = defineStore("activity", {
     async saveAiModeratorReview(item: AiModerationReviewItem) {
       if (!this.session || !this.token || this.mode === "local") return;
       await saveAiModeratorReview(this.session.guild_id, this.token, item);
+    },
+    async simulateAiModerator(messageText: string) {
+      if (!this.session || !this.token || this.mode === "local") return;
+      this.aiModeratorSimulation = await simulateAiModerator(this.session.guild_id, this.token, messageText);
     },
 
     async createDevBlog(draft: Omit<DevBlogDraft, "guild_id">) {

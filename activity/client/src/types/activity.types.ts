@@ -189,6 +189,7 @@ export type AiModerationReviewItem = {
 export type AiModerationReviewPage = { items: AiModerationReviewItem[]; total: number; limit: number; offset: number };
 export type AiModerationReviewAuditEntry = { id: number; review_item_id: number; actor_id: string; action: string; before_json: Record<string, unknown>; after_json: Record<string, unknown>; created_at: string; message_id: string; user_id: string };
 export type AiModerationReviewAuditPage = { items: AiModerationReviewAuditEntry[]; total: number; limit: number; offset: number };
+export type AiModerationSimulation = { simulation: true; dataset_event_created: false; primary_label: string; labels: string[]; risk_score: number; severity: number; confidence: number; model_action: AiModerationAction; policy_action: AiModerationAction; execution_plan: AiModerationAction[]; rule_matches: string[]; latency_ms: number };
 
 export type AiModeratorMetrics = {
   total_messages: number;

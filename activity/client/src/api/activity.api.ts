@@ -6,6 +6,7 @@ import type {
   AiModerationReviewPage,
   AiModerationReviewAuditPage,
   AiModerationReviewItem,
+  AiModerationSimulation,
   ActivityAccessRole,
   ActivityAuditPage,
   ActivityDashboardResponse,
@@ -54,6 +55,9 @@ export function getAiModeratorReviewAudit(guildId: string, token: string, offset
 export function saveAiModeratorReview(guildId: string, token: string, item: AiModerationReviewItem) {
   const { id, guild_id, channel_id, message_id, user_id, labels, created_at, updated_at, resolved_at, resolved_by, ...payload } = item;
   return apiRequest<AiModerationReviewItem>(`/api/ai-moderator/reviews/${id}`, { method: "PUT", body: JSON.stringify({ guild_id: guildId, ...payload }) }, token);
+}
+export function simulateAiModerator(guildId: string, token: string, messageText: string) {
+  return apiRequest<AiModerationSimulation>("/api/ai-moderator/simulate", { method: "POST", body: JSON.stringify({ guild_id: guildId, message_text: messageText }) }, token);
 }
 
 export function exchangeDiscordCode(code: string) {
