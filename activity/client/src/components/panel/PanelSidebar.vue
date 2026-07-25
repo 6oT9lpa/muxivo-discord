@@ -4,6 +4,7 @@ import {
   BellRing,
   Bot,
   ChartNoAxesCombined,
+  ClipboardCheck,
   FileText,
   HeartPulse,
   LayoutDashboard,
@@ -26,7 +27,7 @@ const props = defineProps<{
 }>();
 
 const systemModuleKeys = new Set<ModuleKey>(["integrations", "health"]);
-const categoryOrder = ["workspace", "configuration", "insights", "system"] as const;
+const categoryOrder = ["workspace", "configuration", "review", "insights", "system"] as const;
 const categoryByModule: Record<ModuleKey, (typeof categoryOrder)[number]> = {
   dashboard: "workspace",
   access: "workspace",
@@ -35,6 +36,7 @@ const categoryByModule: Record<ModuleKey, (typeof categoryOrder)[number]> = {
   "creator-alerts": "configuration",
   "dev-blog": "configuration",
   "ai-moderator": "configuration",
+  "ai-review": "review",
   "voice-rooms": "configuration",
   "bot-settings": "configuration",
   logs: "insights",
@@ -57,6 +59,7 @@ const icons = {
   "creator-alerts": BellRing,
   "dev-blog": FileText,
   "ai-moderator": Bot,
+  "ai-review": ClipboardCheck,
   logs: Activity,
   "server-stats": ChartNoAxesCombined,
   "voice-rooms": Volume2,

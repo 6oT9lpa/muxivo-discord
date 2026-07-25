@@ -285,6 +285,12 @@ export const useActivityStore = defineStore("activity", {
       }
 
       await this.loadReferenceData();
+      // The sidebar needs the backend-owned trusted-review flag before the
+      // user opens any module, otherwise Review would appear only after a
+      // detour through AI Moderator.
+      if (this.can("ai-moderator")) {
+        this.aiModerator = await getAiModeratorSettings(discordSdk.guildId, token.access_token);
+      }
       await this.refreshHealth(true);
     },
 
@@ -459,6 +465,8 @@ export const useActivityStore = defineStore("activity", {
           this.activityRoles = settings.activity_roles;
           this.channelPurposes = settings.channel_purposes;
         } else if (module === "ai-moderator") {
+          this.aiModerator = await getAiModeratorSettings(guildId, this.token);
+        } else if (module === "ai-review") {
           this.aiModerator = await getAiModeratorSettings(guildId, this.token);
         } else if (module === "integrations") {
           this.integrations = await getIntegrations(guildId, this.token);
@@ -745,6 +753,7 @@ function emptyPermissions(): Record<ModuleKey, PermissionLevel> {
     "creator-alerts": "disabled",
     "dev-blog": "disabled",
     "ai-moderator": "disabled",
+    "ai-review": "disabled",
     logs: "disabled",
     "server-stats": "disabled",
     "voice-rooms": "disabled",

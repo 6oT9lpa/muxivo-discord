@@ -11,6 +11,7 @@ export type ModuleKey =
   | "creator-alerts"
   | "dev-blog"
   | "ai-moderator"
+  | "ai-review"
   | "logs"
   | "server-stats"
   | "voice-rooms"

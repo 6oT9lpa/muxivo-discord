@@ -4,6 +4,7 @@ import { computed, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import AccessControlPanel from "../components/panel/AccessControlPanel.vue";
 import AiModeratorPanel from "../components/panel/AiModeratorPanel.vue";
+import AiModerationReviewQueue from "../components/panel/AiModerationReviewQueue.vue";
 import BotSettingsPanel from "../components/panel/BotSettingsPanel.vue";
 import CreatorAlertsPanel from "../components/panel/CreatorAlertsPanel.vue";
 import DashboardPanel from "../components/panel/DashboardPanel.vue";
@@ -38,13 +39,23 @@ const previewSystemModules = computed<PanelModule[]>(() => (["integrations", "he
 })));
 const modules = computed(() =>
   activity.session
-    ? buildModules(activity.session).filter((module) => module.permission !== "disabled")
+    ? [
+      ...buildModules(activity.session).filter((module) => module.permission !== "disabled"),
+      ...(activity.aiModerator?.review_access ? [{
+        key: "ai-review" as const,
+        title: moduleLabel("ai-review"),
+        eyebrow: t("ai.review.eyebrow"),
+        description: t("module.ai-review.description"),
+        permission: "view" as const,
+        status: "configured" as const,
+      }] : []),
+    ]
     : previewSystemModules.value,
 );
 const activeModule = computed<ModuleKey>(() => {
   const raw = route.params.module;
   const candidate = Array.isArray(raw) ? raw[0] : raw;
-  return moduleOrder.includes(candidate as ModuleKey) ? (candidate as ModuleKey) : "dashboard";
+  return moduleOrder.includes(candidate as ModuleKey) || candidate === "ai-review" ? (candidate as ModuleKey) : "dashboard";
 });
 
 const activeTitle = computed(() => moduleLabel(activeModule.value));
@@ -70,6 +81,9 @@ const activeModuleLoaded = computed(() => Boolean(activity.loadedModules[activeM
 const activeModulePending = computed(() => activity.moduleLoading && !activeModuleLoaded.value);
 const activeModuleFailed = computed(() => Boolean(activity.moduleError && !activeModuleLoaded.value));
 const isPreviewSystemModule = computed(() => !activity.session && ["integrations", "health"].includes(activeModule.value));
+const canOpenActiveModule = computed(() => activeModule.value === "ai-review"
+  ? Boolean(activity.aiModerator?.review_access)
+  : activity.can(activeModule.value));
 const visibleError = computed(() =>
   isPreviewSystemModule.value ? activity.moduleError || activity.healthError : activity.moduleError || activity.healthError || activity.error,
 );
@@ -95,8 +109,13 @@ async function retryActiveModule() {
 
 watch(
   () => activeModule.value,
-  (module) => {
-    if (activity.session && !activity.can(module)) {
+  async (module) => {
+    // Review is deliberately not an Activity-RBAC permission. It is exposed
+    // only after the backend confirms the trusted Labeling access gate.
+    if (activity.session && module === "ai-review" && !activity.aiModerator) {
+      await activity.loadModuleData("ai-moderator");
+    }
+    if (activity.session && !canOpenActiveModule.value) {
       void router.replace("/no-access");
       return;
     }
@@ -154,6 +173,7 @@ watch(
         <RolePanelsPanel v-else-if="activeModule === 'role-panels'" />
         <CreatorAlertsPanel v-else-if="activeModule === 'creator-alerts'" />
         <AiModeratorPanel v-else-if="activeModule === 'ai-moderator'" />
+        <AiModerationReviewQueue v-else-if="activeModule === 'ai-review'" />
         <DevBlogPanel v-else-if="activeModule === 'dev-blog'" />
         <VoiceRoomsPanel v-else-if="activeModule === 'voice-rooms'" />
         <ServerStatsPanel v-else-if="activeModule === 'server-stats'" />

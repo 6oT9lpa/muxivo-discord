@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
-import { Check, Hash, Plus, ShieldCheck, Trash2 } from "@lucide/vue";
+import { Check, ChevronDown, Hash, Plus, ShieldCheck, Trash2 } from "@lucide/vue";
 import RevealOnScroll from "../common/RevealOnScroll.vue";
-import AiModerationReviewQueue from "./AiModerationReviewQueue.vue";
 import { useActivityStore } from "../../stores/activity.store";
 import type { AiModerationAction, AiModerationLabelPolicy, AiModerationPolicy } from "../../types/activity.types";
 import { t } from "../../i18n";
 
-type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics" | "review";
+type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics";
+type ExclusionKind = "user" | "role" | "channel";
 
 type LabelDefinition = {
   key: string;
@@ -21,9 +21,8 @@ const activeTab = ref<AiModeratorTab>("channels");
 const selectedChannels = ref<string[]>([]);
 const blacklistDraft = ref("");
 const domainDraft = ref("");
-const excludedUserDraft = ref("");
-const excludedRoleDraft = ref("");
-const excludedChannelDraft = ref("");
+const exclusionQueries = reactive<Record<ExclusionKind, string>>({ user: "", role: "", channel: "" });
+const selectedExclusions = reactive<Record<ExclusionKind, string>>({ user: "", role: "", channel: "" });
 const status = ref("");
 const settings = computed(() => activity.aiModerator);
 const actionOptions = computed(() => (["IGNORE", "LOG", "REVIEW", "WARN", "DELETE", "DELETE_WARN", "TIMEOUT", "KICK", "BAN"] as AiModerationAction[])
@@ -43,8 +42,16 @@ const labelDefinitions: LabelDefinition[] = [
     key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, min, max),
   })),
 ];
-const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : []), ...(settings.value?.review_access ? ["review"] : [])] as AiModeratorTab[])
-  .map((key) => ({ key, labelKey: key === "review" ? "Review queue" : `ai.tab.${key}` })));
+const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
+  .map((key) => ({ key, labelKey: `ai.tab.${key}` })));
+const exclusionSections = computed(() => ([
+  { key: "user" as const, titleKey: "ai.exclusions.users", helpKey: "ai.exclusions.users_help", placeholderKey: "ai.exclusions.search_users", values: moderationPolicy.excluded_user_ids, candidates: activity.members.map((member) => ({ id: member.id, label: `${member.display_name} (@${member.username})`, search: `${member.display_name} ${member.username} ${member.id}` })) },
+  { key: "role" as const, titleKey: "ai.exclusions.roles", helpKey: "ai.exclusions.roles_help", placeholderKey: "ai.exclusions.search_roles", values: moderationPolicy.excluded_role_ids, candidates: activity.roles.filter((role) => !role.managed).map((role) => ({ id: role.id, label: `@${role.name}`, search: `${role.name} ${role.id}` })) },
+  { key: "channel" as const, titleKey: "ai.exclusions.channels", helpKey: "ai.exclusions.channels_help", placeholderKey: "ai.exclusions.search_channels", values: moderationPolicy.excluded_channel_ids, candidates: activity.textChannels.map((channel) => ({ id: channel.id, label: `#${channel.name}`, search: `${channel.name} ${channel.id}` })) },
+].map((section) => ({
+  ...section,
+  filtered: section.candidates.filter((candidate) => candidate.search.toLocaleLowerCase().includes(exclusionQueries[section.key].trim().toLocaleLowerCase())).slice(0, 25),
+}))));
 const moderationPolicy = reactive<AiModerationPolicy>(emptyPolicy());
 
 watch(settings, (value) => {
@@ -193,12 +200,17 @@ function removeValue(values: string[], value: string): string[] {
   return values.filter((item) => item !== value);
 }
 
-function addExcludedId(kind: "user" | "role" | "channel") {
-  const draft = kind === "user" ? excludedUserDraft : kind === "role" ? excludedRoleDraft : excludedChannelDraft;
-  const ids = unique(draft.value.split(",").map((value) => value.trim()).filter((value) => /^\d{1,20}$/.test(value)));
+function addExcludedSelection(kind: ExclusionKind) {
+  const id = selectedExclusions[kind];
+  if (!id) return;
   const property = kind === "user" ? "excluded_user_ids" : kind === "role" ? "excluded_role_ids" : "excluded_channel_ids";
-  moderationPolicy[property] = unique([...moderationPolicy[property], ...ids]);
-  draft.value = "";
+  moderationPolicy[property] = unique([...moderationPolicy[property], id]);
+  selectedExclusions[kind] = "";
+}
+
+function exclusionLabel(kind: ExclusionKind, id: string) {
+  const section = exclusionSections.value.find((item) => item.key === kind);
+  return section?.candidates.find((candidate) => candidate.id === id)?.label ?? id;
 }
 </script>
 
@@ -233,8 +245,7 @@ function addExcludedId(kind: "user" | "role" | "channel") {
   </RevealOnScroll>
 
   <RevealOnScroll tag="section" class="panel-section module-content-panel" :delay="60">
-    <AiModerationReviewQueue v-if="activeTab === 'review'" />
-    <div v-else-if="activeTab === 'channels'" class="ai-moderation-workspace">
+    <div v-if="activeTab === 'channels'" class="ai-moderation-workspace">
       <div class="ai-moderation-section-copy">
         <div>
           <span class="ai-moderation-kicker">{{ $t("ai.channel_coverage") }}</span>
@@ -294,10 +305,14 @@ function addExcludedId(kind: "user" | "role" | "channel") {
     </div>
 
     <div v-else-if="activeTab === 'exceptions'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">EXCLUSIONS</span><h3>AI moderator allowlist</h3><p>Excluded users, roles and channels are not evaluated or punished. Bot messages remain excluded by default.</p></div></div>
-      <div class="ai-policy-controls"><label><span>Exclude bot messages</span><input v-model="moderationPolicy.exclude_bots" type="checkbox" /></label><label><span>Escalate repeated offences</span><input v-model="moderationPolicy.escalation_enabled" type="checkbox" /></label><label><span>Escalation score</span><input v-model.number="moderationPolicy.escalation_score_threshold" type="number" min="0.1" max="1000" step="0.1" /></label><label><span>History half-life, days</span><input v-model.number="moderationPolicy.escalation_half_life_days" type="number" min="1" max="3650" step="1" /></label></div>
-      <div v-for="item in [['user', 'Users', excludedUserDraft, moderationPolicy.excluded_user_ids], ['role', 'Roles', excludedRoleDraft, moderationPolicy.excluded_role_ids], ['channel', 'Channels', excludedChannelDraft, moderationPolicy.excluded_channel_ids]] as const" :key="item[0]" class="ai-moderation-section-copy"><div><h3>{{ item[1] }}</h3><p>Discord IDs only; use comma-separated values.</p><div class="ai-token-input"><input v-model="item[2].value" inputmode="numeric" placeholder="Discord ID" @keyup.enter.prevent="addExcludedId(item[0])" /><button class="ghost-button" type="button" @click="addExcludedId(item[0])"><Plus :size="16" /> {{ $t('ai.add') }}</button></div><div v-if="item[3].length" class="ai-token-list"><span v-for="value in item[3]" :key="value" class="ai-token">{{ value }}<button type="button" :aria-label="`Remove ${value}`" @click="moderationPolicy[item[0] === 'user' ? 'excluded_user_ids' : item[0] === 'role' ? 'excluded_role_ids' : 'excluded_channel_ids'] = removeValue(item[3], value)"><Trash2 :size="14" /></button></span></div></div></div>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy('AI moderator exclusions saved.')">Save exclusions</button></div>
+      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">{{ $t('ai.exclusions.eyebrow') }}</span><h3>{{ $t('ai.exclusions.heading') }}</h3><p>{{ $t('ai.exclusions.description') }}</p></div></div>
+      <div class="ai-exclusion-switch-grid">
+        <article class="ai-exclusion-switch-card"><div><strong>{{ $t('ai.exclusions.exclude_bots') }}</strong><p>{{ $t('ai.exclusions.exclude_bots_help') }}</p></div><button class="ai-switch" type="button" role="switch" :aria-checked="moderationPolicy.exclude_bots" :aria-label="$t('ai.exclusions.exclude_bots')" :class="{ active: moderationPolicy.exclude_bots }" @click="moderationPolicy.exclude_bots = !moderationPolicy.exclude_bots"><span /></button></article>
+        <article class="ai-exclusion-switch-card"><div><strong>{{ $t('ai.exclusions.escalation') }}</strong><p>{{ $t('ai.exclusions.escalation_help') }}</p></div><button class="ai-switch" type="button" role="switch" :aria-checked="moderationPolicy.escalation_enabled" :aria-label="$t('ai.exclusions.escalation')" :class="{ active: moderationPolicy.escalation_enabled }" @click="moderationPolicy.escalation_enabled = !moderationPolicy.escalation_enabled"><span /></button></article>
+      </div>
+      <div class="ai-policy-controls"><label><span>{{ $t('ai.exclusions.escalation_score') }}</span><small>{{ $t('ai.exclusions.escalation_score_help') }}</small><input v-model.number="moderationPolicy.escalation_score_threshold" type="number" min="0.1" max="1000" step="0.1" /></label><label><span>{{ $t('ai.exclusions.half_life') }}</span><small>{{ $t('ai.exclusions.half_life_help') }}</small><input v-model.number="moderationPolicy.escalation_half_life_days" type="number" min="1" max="3650" step="1" /></label></div>
+      <article v-for="section in exclusionSections" :key="section.key" class="ai-exclusion-picker"><div><h3>{{ $t(section.titleKey) }}</h3><p>{{ $t(section.helpKey) }}</p></div><div class="ai-exclusion-picker-controls"><input v-model="exclusionQueries[section.key]" type="search" :placeholder="$t(section.placeholderKey)" /><label class="sr-only" :for="`exclude-${section.key}`">{{ $t(section.titleKey) }}</label><select :id="`exclude-${section.key}`" v-model="selectedExclusions[section.key]" :disabled="!section.filtered.length"><option value="">{{ $t('ai.exclusions.choose') }}</option><option v-for="candidate in section.filtered" :key="candidate.id" :value="candidate.id">{{ candidate.label }} · {{ candidate.id }}</option></select><button class="ghost-button" type="button" :disabled="!selectedExclusions[section.key]" @click="addExcludedSelection(section.key)"><Plus :size="16" /> {{ $t('ai.add') }}</button></div><div v-if="section.values.length" class="ai-token-list"><span v-for="value in section.values" :key="value" class="ai-token">{{ exclusionLabel(section.key, value) }} <small>· {{ value }}</small><button type="button" :aria-label="$t('ai.remove_value', { value })" @click="moderationPolicy[section.key === 'user' ? 'excluded_user_ids' : section.key === 'role' ? 'excluded_role_ids' : 'excluded_channel_ids'] = removeValue(section.values, value)"><Trash2 :size="14" /></button></span></div></article>
+      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.exclusions.saved'))">{{ $t('ai.exclusions.save') }}</button></div>
     </div>
 
     <div v-else-if="activeTab === 'actions'" class="ai-moderation-workspace">
