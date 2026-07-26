@@ -36,6 +36,11 @@ class DiscordMessageContentNormalizer:
 
     def _embeds(self, embeds: Iterable[object]) -> Iterable[tuple[str, str, str, str]]:
         for embed in embeds:
+            # Discord emits an update after it hydrates its automatic preview
+            # for a URL already present in the message. That gateway update is
+            # not a user edit and must not produce a moderation/audit entry.
+            if self._text(getattr(embed, "type", "")) == "link":
+                continue
             yield (
                 self._text(getattr(embed, "url", "")),
                 self._text(getattr(embed, "title", "")),
