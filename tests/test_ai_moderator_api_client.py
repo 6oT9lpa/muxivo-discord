@@ -49,3 +49,20 @@ def test_ai_moderator_payload_includes_validated_user_context() -> None:
     )
     assert payload["event_type"] == "UPDATE"
     assert payload["user_context"]["punishments"]["total_in_window"] == 2
+
+
+def test_ai_moderator_payload_does_not_include_removed_author_fields() -> None:
+    client = AiModeratorApiClient("http://127.0.0.1:8000", "key", 1)
+    payload = client._moderation_payload(
+        AiModerationRequest(
+            guild_id=1,
+            channel_id=2,
+            user_id=3,
+            message_id=4,
+            raw_text="message",
+            created_at=datetime.now(timezone.utc),
+        )
+    )
+
+    assert "author_role_ids" not in payload
+    assert "author_is_bot" not in payload

@@ -53,7 +53,7 @@ class AiModeratorApiClient:
         )
 
     def _moderation_payload(self, request: AiModerationRequest) -> dict[str, Any]:
-        payload = request.model_dump(mode="json")
+        payload = request.model_dump(mode="json", exclude={"author_role_ids", "author_is_bot"})
         payload["platform"] = "discord"
         for key in ("guild_id", "channel_id", "user_id", "message_id", "reply_to_message_id"):
             if payload.get(key) is not None:

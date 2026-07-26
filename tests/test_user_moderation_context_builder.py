@@ -27,3 +27,22 @@ async def test_context_is_guild_scoped_and_windowed() -> None:
     assert context.punishments.timeouts_in_window == 1
     assert context.punishments.bans_in_window == 0
     assert context.punishments.ai_deleted_messages_in_window == 1
+
+
+def test_weighted_escalation_score_weights_severity_and_recency() -> None:
+    now = datetime.now(timezone.utc)
+    builder = UserModerationContextBuilder(_Punishments(), _Events())
+
+    score = builder._weighted_escalation_score(
+        [
+            {"type": "warn", "created_at": now},
+            {"type": "timeout", "created_at": now},
+            {"type": "kick", "created_at": now},
+            {"type": "ban", "created_at": now},
+            {"type": "warn", "created_at": now - timedelta(days=30)},
+        ],
+        now,
+        half_life_days=30,
+    )
+
+    assert score == 10.5

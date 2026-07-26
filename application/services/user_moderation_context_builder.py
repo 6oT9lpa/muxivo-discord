@@ -69,8 +69,14 @@ class UserModerationContextBuilder:
         now: datetime,
         half_life_days: float,
     ) -> float:
-        """Weight warnings/timeouts by recency so old history fades safely."""
-        weights = {"warn": 1.0, "timeout": 2.0, "mute": 2.0}
+        """Weight every enforceable punishment by recency so old history fades safely."""
+        weights = {
+            "warn": 1.0,
+            "timeout": 2.0,
+            "mute": 2.0,
+            "kick": 3.0,
+            "ban": 4.0,
+        }
         score = 0.0
         for row in rows:
             created_at = self._created_at(row)
