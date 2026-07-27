@@ -1,10 +1,3 @@
-"""Discord edge adapter for the AI moderation pipeline.
-
-The cog collects Discord-only context, sends an immutable request to the AI
-service, applies server enforcement policy, and executes the resulting plan.
-Business policy stays in application services rather than Discord callbacks.
-"""
-
 from __future__ import annotations
 
 from datetime import datetime, timedelta
