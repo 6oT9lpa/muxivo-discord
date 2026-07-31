@@ -103,6 +103,19 @@ AI_MODERATOR_API_KEY=change_me
 AI_MODERATOR_REQUEST_TIMEOUT_SECONDS=10
 ```
 
+AI moderation routing is attachment-aware. CREATE and UPDATE events without a
+supported Discord image use `POST /moderation/messages`; events containing a
+JPEG, PNG, or WebP attachment use `POST /moderation/media`. The media request is
+built only from Discord attachment properties (ID, signed CDN URL, filename,
+content type, byte size, width, and height) and still includes the complete text
+message context. One Discord event receives one combined decision, so Test Mode,
+action execution, and action-result reporting keep their existing semantics.
+
+The bot does not download or inspect image bytes and does not infer attachments
+from URLs written in message text. Download validation, OCR/image-provider
+fallback, retention, and the final moderation decision remain responsibilities
+of AI-Moderator.
+
 ## Discord Activity
 
 The Activity panel is intended to run inside Discord, not as a standalone public dashboard.

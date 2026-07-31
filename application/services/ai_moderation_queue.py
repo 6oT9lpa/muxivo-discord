@@ -30,6 +30,9 @@ class AiModerationQueue:
             worker.cancel()
         await asyncio.gather(*self._workers, return_exceptions=True)
         self._workers.clear()
+        close = getattr(self._client, "close", None)
+        if close is not None:
+            await close()
         logger.info("AI moderation queue stopped")
 
     def submit(self, request: AiModerationRequest) -> bool:

@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from application.dto.user_moderation_context import UserModerationContext
+from application.dto.media_attachment_request import MediaAttachmentRequest
 
 
 
@@ -26,8 +27,17 @@ class AiModerationRequest(BaseModel):
     channel_mention_count: int = Field(default=0, ge=0, le=100)
     has_attachments: bool = False
     attachment_count: int = Field(default=0, ge=0, le=50)
+    attachments: tuple[MediaAttachmentRequest, ...] = Field(default=(), max_length=10)
     recent_messages: tuple[str, ...] = Field(default=(), max_length=20)
     recent_message_timestamps: tuple[datetime, ...] = Field(default=(), max_length=20)
     metadata: dict[str, Any] = Field(default_factory=dict, max_length=32)
     event_type: Literal["CREATE", "UPDATE"] = "CREATE"
     user_context: UserModerationContext | None = None
+
+    @model_validator(mode="after")
+    def validate_media_metadata(self) -> "AiModerationRequest":
+        if self.attachments and (
+            not self.has_attachments or self.attachment_count != len(self.attachments)
+        ):
+            raise ValueError("attachment metadata must match attachments")
+        return self

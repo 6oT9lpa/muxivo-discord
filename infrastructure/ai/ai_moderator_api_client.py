@@ -16,21 +16,30 @@ class AiModeratorApiClient:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
         self._timeout = httpx.Timeout(timeout_seconds)
+        self._client: httpx.AsyncClient | None = None
 
     async def moderate(self, request: AiModerationRequest) -> AiModerationDecision:
         payload = self._moderation_payload(request)
-        async with httpx.AsyncClient(timeout=self._timeout, trust_env=False) as client:
-            response = await client.post(
-                f"{self._base_url}/moderation/messages",
-                headers={"X-Internal-Api-Key": self._api_key},
-                json=payload,
-            )
+        endpoint = "/moderation/media" if request.attachments else "/moderation/messages"
+        request_payload = (
+            {
+                "message": payload,
+                "attachments": [attachment.model_dump(mode="json") for attachment in request.attachments],
+            }
+            if request.attachments
+            else payload
+        )
+        response = await self._http_client().post(
+            f"{self._base_url}{endpoint}",
+            headers={"X-Internal-Api-Key": self._api_key},
+            json=request_payload,
+        )
         if response.status_code >= 400:
             logger.warning(
-                "AI moderator request failed status=%s body=%s message_id=%s",
+                "AI moderator request failed status=%s message_id=%s endpoint=%s",
                 response.status_code,
-                response.text[:500],
                 request.message_id,
+                endpoint,
             )
         response.raise_for_status()
         data = response.json()
@@ -53,7 +62,10 @@ class AiModeratorApiClient:
         )
 
     def _moderation_payload(self, request: AiModerationRequest) -> dict[str, Any]:
-        payload = request.model_dump(mode="json", exclude={"author_role_ids", "author_is_bot"})
+        payload = request.model_dump(
+            mode="json",
+            exclude={"author_role_ids", "author_is_bot", "attachments"},
+        )
         payload["platform"] = "discord"
         for key in ("guild_id", "channel_id", "user_id", "message_id", "reply_to_message_id"):
             if payload.get(key) is not None:
@@ -61,21 +73,29 @@ class AiModeratorApiClient:
         return payload
 
     async def report_action(self, event_id: int, action: str, status: str, dry_run: bool) -> None:
-        async with httpx.AsyncClient(timeout=self._timeout, trust_env=False) as client:
-            response = await client.post(
-                f"{self._base_url}/actions/result",
-                headers={"X-Internal-Api-Key": self._api_key},
-                json={"event_id": event_id, "action": action, "status": status, "dry_run": dry_run, "timestamp": datetime.now(timezone.utc).isoformat()},
-            )
+        response = await self._http_client().post(
+            f"{self._base_url}/actions/result",
+            headers={"X-Internal-Api-Key": self._api_key},
+            json={"event_id": event_id, "action": action, "status": status, "dry_run": dry_run, "timestamp": datetime.now(timezone.utc).isoformat()},
+        )
         response.raise_for_status()
 
     async def simulate(self, request: AiModerationRequest) -> dict[str, Any]:
         """Classify a dashboard test message without writing a dataset event."""
-        async with httpx.AsyncClient(timeout=self._timeout, trust_env=False) as client:
-            response = await client.post(
-                f"{self._base_url}/moderation/simulate",
-                headers={"X-Internal-Api-Key": self._api_key},
-                json=self._moderation_payload(request),
-            )
+        response = await self._http_client().post(
+            f"{self._base_url}/moderation/simulate",
+            headers={"X-Internal-Api-Key": self._api_key},
+            json=self._moderation_payload(request),
+        )
         response.raise_for_status()
         return dict(response.json())
+
+    async def close(self) -> None:
+        if self._client is not None:
+            await self._client.aclose()
+            self._client = None
+
+    def _http_client(self) -> httpx.AsyncClient:
+        if self._client is None:
+            self._client = httpx.AsyncClient(timeout=self._timeout, trust_env=False)
+        return self._client

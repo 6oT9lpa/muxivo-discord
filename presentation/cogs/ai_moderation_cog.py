@@ -7,6 +7,7 @@ from disnake.ext import commands, tasks
 
 from application.dto.ai_moderation_decision import AiModerationDecision
 from application.dto.ai_moderation_request import AiModerationRequest
+from application.dto.media_attachment_request import MediaAttachmentRequest
 from application.services.ai_moderation_queue import AiModerationQueue
 from application.services.ai_moderation_policy_enforcer import AiModerationPolicyEnforcer
 from application.services.ai_moderation_settings_service import AiModerationSettingsService
@@ -27,6 +28,8 @@ logger = get_logger(__name__)
 
 class AiModerationCog(commands.Cog):
     """Connect Discord messages, moderation decisions and audit logging."""
+    _SUPPORTED_IMAGE_CONTENT_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+
     def __init__(self, bot: commands.Bot, settings_service: AiModerationSettingsService, channel_service: ChannelService, queue: AiModerationQueue, context_builder: UserModerationContextBuilder, punishment_repository: PunishmentRepositoryInterface, ai_repository: AiModerationRepositoryInterface | None = None) -> None:
         self._bot = bot
         self._settings_service = settings_service
@@ -112,6 +115,8 @@ class AiModerationCog(commands.Cog):
         )
         recent_messages, recent_timestamps = await self._recent_author_messages(message)
         metadata = await self._reply_context(message)
+        media_attachments = self._media_attachments(message)
+        metadata["discord_attachment_count"] = len(message.attachments)
         return AiModerationRequest(
             guild_id=message.guild.id,
             channel_id=message.channel.id,
@@ -127,14 +132,35 @@ class AiModerationCog(commands.Cog):
             mention_count=len(message.mentions),
             role_mention_count=len(message.role_mentions),
             channel_mention_count=len(message.channel_mentions),
-            has_attachments=bool(message.attachments),
-            attachment_count=len(message.attachments),
+            has_attachments=bool(media_attachments),
+            attachment_count=len(media_attachments),
+            attachments=media_attachments,
             recent_messages=recent_messages,
             recent_message_timestamps=recent_timestamps,
             metadata=metadata,
             event_type=event_type,
             user_context=user_context,
         )
+
+    @classmethod
+    def _media_attachments(cls, message: disnake.Message) -> tuple[MediaAttachmentRequest, ...]:
+        attachments: list[MediaAttachmentRequest] = []
+        for attachment in message.attachments:
+            content_type = (attachment.content_type or "").split(";", 1)[0].strip().casefold()
+            if content_type not in cls._SUPPORTED_IMAGE_CONTENT_TYPES:
+                continue
+            attachments.append(
+                MediaAttachmentRequest(
+                    attachment_id=str(attachment.id),
+                    download_url=str(attachment.url),
+                    file_name=attachment.filename,
+                    content_type=content_type,
+                    file_size=attachment.size,
+                    width=attachment.width,
+                    height=attachment.height,
+                )
+            )
+        return tuple(attachments)
 
     @commands.slash_command(name="set", description="AI moderation settings")
     @commands.has_permissions(administrator=True)
