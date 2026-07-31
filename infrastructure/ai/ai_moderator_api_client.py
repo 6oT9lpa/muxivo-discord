@@ -90,6 +90,48 @@ class AiModeratorApiClient:
         response.raise_for_status()
         return dict(response.json())
 
+    async def get_media_policy(self, guild_id: int) -> dict[str, Any]:
+        response = await self._http_client().get(
+            f"{self._base_url}/policies/media",
+            headers={"X-Internal-Api-Key": self._api_key},
+            params={"guild_id": str(guild_id)},
+        )
+        response.raise_for_status()
+        return dict(response.json())
+
+    async def save_media_policy(
+        self,
+        *,
+        guild_id: int,
+        actor_id: int,
+        expected_revision: int,
+        media: dict[str, Any],
+    ) -> dict[str, Any]:
+        response = await self._http_client().put(
+            f"{self._base_url}/policies/media",
+            headers={
+                "X-Internal-Api-Key": self._api_key,
+                "X-Verified-Guild-Id": str(guild_id),
+                "X-Actor-Id": str(actor_id),
+            },
+            json={"expected_revision": expected_revision, "media": media},
+        )
+        response.raise_for_status()
+        return dict(response.json())
+
+    async def reset_media_policy(self, *, guild_id: int, actor_id: int, expected_revision: int) -> dict[str, Any]:
+        response = await self._http_client().delete(
+            f"{self._base_url}/policies/media",
+            headers={
+                "X-Internal-Api-Key": self._api_key,
+                "X-Verified-Guild-Id": str(guild_id),
+                "X-Actor-Id": str(actor_id),
+            },
+            params={"expected_revision": expected_revision},
+        )
+        response.raise_for_status()
+        return dict(response.json())
+
     async def close(self) -> None:
         if self._client is not None:
             await self._client.aclose()

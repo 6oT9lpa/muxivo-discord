@@ -722,6 +722,7 @@
   "ai.settings": "AI moderation settings",
   "ai.tab.channels": "Channels",
   "ai.tab.policy": "Overview",
+  "ai.tab.media": "Media",
   "ai.tab.blacklist": "Blocked words",
   "ai.tab.domains": "Allowed domains",
   "ai.tab.exceptions": "Exceptions",

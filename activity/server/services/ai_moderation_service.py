@@ -8,6 +8,7 @@ from activity.server.services.access_service import ActivityAccessService
 from activity.server.services.discord_service import DiscordService
 from activity.server.schemas.ai_moderation_channels import AiModerationChannelsPayload
 from activity.server.schemas.ai_moderation_policy import AiModerationPolicyPayload
+from activity.server.schemas.media_policy import MediaPolicyPayload
 from core.domain.default_ai_moderation_policy import default_ai_moderation_policy, merge_with_default_ai_moderation_policy
 from core.domain.ai_moderation_guild_policy import AiModerationGuildPolicy
 from application.dto.ai_moderation_request import AiModerationRequest
@@ -18,6 +19,7 @@ from infrastructure.config import get_config
 from infrastructure.logging import get_logger
 from psycopg.types.json import Jsonb
 from fastapi import HTTPException
+import httpx
 
 logger = get_logger(__name__)
 
@@ -70,6 +72,74 @@ class AiModerationService:
         await get_db().commit()
         logger.info("Saved AI moderation channel coverage guild_id=%s", payload.guild_id)
         return await self.get_settings(payload.guild_id, access_token)
+
+    async def get_media_policy(self, guild_id: int, access_token: str) -> dict[str, Any]:
+        await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator")
+        client = self._media_policy_client()
+        try:
+            return await client.get_media_policy(guild_id)
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=503, detail="AI Moderator media policy is unavailable") from exc
+        finally:
+            await client.close()
+
+    async def save_media_policy(self, payload: MediaPolicyPayload, access_token: str) -> dict[str, Any]:
+        await self._access_service.ensure_module_access(
+            access_token, str(payload.guild_id), "ai-moderator", "manage"
+        )
+        context = await self._access_service.fetch_user_context(access_token, str(payload.guild_id))
+        actor_id = int(context["user"]["id"])
+        client = self._media_policy_client()
+        try:
+            await client.save_media_policy(
+                guild_id=payload.guild_id, actor_id=actor_id,
+                expected_revision=payload.expected_revision, media=payload.media,
+            )
+            verified = await client.get_media_policy(payload.guild_id)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 409:
+                raise HTTPException(status_code=409, detail="Media policy changed; reload before saving") from exc
+            raise HTTPException(status_code=502, detail="AI Moderator rejected media policy") from exc
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=503, detail="AI Moderator media policy is unavailable") from exc
+        finally:
+            await client.close()
+        if verified.get("source") != "DATABASE" or int(verified.get("revision", 0)) <= payload.expected_revision:
+            raise HTTPException(status_code=502, detail="Media policy save could not be verified")
+        return verified
+
+    async def reset_media_policy(self, guild_id: int, expected_revision: int, access_token: str) -> dict[str, Any]:
+        await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator", "manage")
+        context = await self._access_service.fetch_user_context(access_token, str(guild_id))
+        actor_id = int(context["user"]["id"])
+        client = self._media_policy_client()
+        try:
+            await client.reset_media_policy(
+                guild_id=guild_id, actor_id=actor_id, expected_revision=expected_revision
+            )
+            verified = await client.get_media_policy(guild_id)
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 409:
+                raise HTTPException(status_code=409, detail="Media policy changed; reload before reset") from exc
+            raise HTTPException(status_code=502, detail="AI Moderator rejected media policy reset") from exc
+        except httpx.RequestError as exc:
+            raise HTTPException(status_code=503, detail="AI Moderator media policy is unavailable") from exc
+        finally:
+            await client.close()
+        if verified.get("source") != "YAML_DEFAULT":
+            raise HTTPException(status_code=502, detail="Media policy reset could not be verified")
+        return verified
+
+    @staticmethod
+    def _media_policy_client() -> AiModeratorApiClient:
+        config = get_config()
+        if config.ai_moderator_internal_api_key is None:
+            raise HTTPException(status_code=503, detail="AI Moderator is not configured")
+        return AiModeratorApiClient(
+            config.ai_moderator_api_url,
+            config.ai_moderator_internal_api_key.get_secret_value(),
+            config.ai_moderator_request_timeout_seconds,
+        )
 
     async def get_metrics(self, guild_id: int, access_token: str) -> dict[str, object]:
         """Return privacy-gated aggregate quality metrics, never message content."""

@@ -1,4 +1,8 @@
 from datetime import datetime, timezone
+import asyncio
+import json
+
+import httpx
 
 from application.dto.ai_moderation_request import AiModerationRequest
 from application.dto.user_moderation_context import UserModerationContext, UserPunishmentStatistics
@@ -66,3 +70,38 @@ def test_ai_moderator_payload_does_not_include_removed_author_fields() -> None:
 
     assert "author_role_ids" not in payload
     assert "author_is_bot" not in payload
+
+
+def test_media_policy_requests_forward_verified_scope_and_revision() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"source": "DATABASE", "revision": 4})
+
+    async def exercise() -> None:
+        client = AiModeratorApiClient("http://ai-moderator", "internal-key", 1)
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            await client.get_media_policy(123)
+            await client.save_media_policy(
+                guild_id=123,
+                actor_id=456,
+                expected_revision=3,
+                media={"ocr": {"enabled": True}},
+            )
+            await client.reset_media_policy(guild_id=123, actor_id=456, expected_revision=4)
+        finally:
+            await client.close()
+
+    asyncio.run(exercise())
+
+    assert [request.method for request in requests] == ["GET", "PUT", "DELETE"]
+    assert requests[0].url.params["guild_id"] == "123"
+    assert requests[1].headers["x-verified-guild-id"] == "123"
+    assert requests[1].headers["x-actor-id"] == "456"
+    assert json.loads(requests[1].content) == {
+        "expected_revision": 3,
+        "media": {"ocr": {"enabled": True}},
+    }
+    assert requests[2].url.params["expected_revision"] == "4"

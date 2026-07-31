@@ -722,6 +722,7 @@
   "ai.settings": "Настройки AI-модерации",
   "ai.tab.channels": "Каналы",
   "ai.tab.policy": "Обзор",
+  "ai.tab.media": "Медиа",
   "ai.tab.blacklist": "Запрещённые слова",
   "ai.tab.domains": "Разрешённые домены",
   "ai.tab.exceptions": "Исключения",

@@ -181,6 +181,52 @@ export type AiModeratorSettings = {
   review_access: boolean;
 };
 
+export type MediaFailureAction = "partial" | "reject";
+export type MediaDetectorClassPolicy = {
+  enabled: boolean;
+  moderation_label: "SCAM" | "NSFW";
+  min_confidence: number;
+  severity: number;
+};
+export type MediaPolicy = {
+  ocr: {
+    version: string;
+    ocr: {
+      enabled: boolean; required: boolean; allow_partial_results: boolean;
+      processing: {
+        min_line_confidence: number; min_mean_confidence: number; min_text_length: number;
+        max_lines: number; max_text_length: number; preserve_line_breaks: boolean;
+        discard_low_confidence_lines: boolean; process_empty_result: boolean;
+      };
+      normalization: Record<string, boolean>;
+      moderation: { run_tiny2: boolean; source: "OCR"; merge_with_message_text: boolean; keep_attachment_provenance: boolean };
+      failure_policy: { timeout: MediaFailureAction; unavailable: MediaFailureAction; invalid_result: MediaFailureAction };
+    };
+  };
+  yolo: {
+    version: string;
+    yolo: {
+      enabled: boolean; required: boolean; allow_partial_results: boolean;
+      inference: { confidence_threshold: number; iou_threshold: number; max_detections: number };
+      classes: Record<string, MediaDetectorClassPolicy>;
+      aggregation: Record<string, boolean | string>;
+      failure_policy: { timeout: MediaFailureAction; unavailable: MediaFailureAction; invalid_result: MediaFailureAction };
+    };
+  };
+};
+export type EffectiveMediaPolicy = {
+  platform: "discord";
+  guild_id: string;
+  media: MediaPolicy;
+  source: "YAML_DEFAULT" | "DATABASE";
+  schema_version: string;
+  defaults_version: string;
+  revision: number;
+  updated_at: string | null;
+  updated_by: string | null;
+  runtime: { ocr_enabled: boolean; ocr_ready: boolean; yolo_enabled: boolean; yolo_ready: boolean };
+};
+
 export type AiModerationReviewItem = {
   id: number; guild_id: string; channel_id: string; message_id: string; user_id: string;
   message_text: string; risk_score: number; severity: number; action: AiModerationAction;

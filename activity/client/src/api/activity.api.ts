@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 import type {
   ActivityHealth,
   AiModeratorSettings,
+  EffectiveMediaPolicy,
   AiModeratorMetrics,
   AiModerationReviewPage,
   AiModerationReviewAuditPage,
@@ -44,6 +45,24 @@ export function saveAiModeratorChannels(guildId: string, token: string, channelI
 
 export function saveAiModeratorPolicy(guildId: string, token: string, policy: Record<string, unknown>) {
   return apiRequest<AiModeratorSettings>("/api/ai-moderator/policy", { method: "PUT", body: JSON.stringify({ guild_id: guildId, policy }) }, token);
+}
+
+export function getMediaPolicy(guildId: string, token: string) {
+  return apiRequest<EffectiveMediaPolicy>(`/api/ai-moderator/media-policy?guild_id=${guildId}`, {}, token);
+}
+
+export function saveMediaPolicy(guildId: string, token: string, expectedRevision: number, media: EffectiveMediaPolicy["media"]) {
+  return apiRequest<EffectiveMediaPolicy>("/api/ai-moderator/media-policy", {
+    method: "PUT",
+    body: JSON.stringify({ guild_id: guildId, expected_revision: expectedRevision, media }),
+  }, token);
+}
+
+export function resetMediaPolicy(guildId: string, token: string, expectedRevision: number) {
+  return apiRequest<EffectiveMediaPolicy>(
+    `/api/ai-moderator/media-policy?guild_id=${guildId}&expected_revision=${expectedRevision}`,
+    { method: "DELETE" }, token,
+  );
 }
 
 export function getAiModeratorReviews(guildId: string, token: string, status: "OPEN" | "RESOLVED", offset = 0) {

@@ -13,6 +13,7 @@ import {
   getAiModeratorMetrics,
   getAiModeratorReviews,
   getAiModeratorReviewAudit,
+  getMediaPolicy,
   getActivityDashboard,
   getActivityHealth,
   getActivityRoles,
@@ -38,6 +39,8 @@ import {
   saveAiModeratorChannels,
   saveAiModeratorPolicy,
   saveAiModeratorReview,
+  saveMediaPolicy,
+  resetMediaPolicy,
   simulateAiModerator,
   saveActivityAccessRoleModules,
   saveActivitySyncedRoleAssignments,
@@ -64,6 +67,7 @@ import type {
   AiModerationReviewAuditPage,
   AiModerationReviewItem,
   AiModerationSimulation,
+  EffectiveMediaPolicy,
   ActivityAccessRole,
   ActivityAuditPage,
   ActivityDashboardResponse,
@@ -137,6 +141,7 @@ type State = {
     aiModeratorReviews: AiModerationReviewPage | null;
     aiModeratorReviewAudit: AiModerationReviewAuditPage | null;
     aiModeratorSimulation: AiModerationSimulation | null;
+    mediaPolicy: EffectiveMediaPolicy | null;
   discordSdk: DiscordSDK | null;
   auth: Auth | null;
 };
@@ -184,6 +189,7 @@ export const useActivityStore = defineStore("activity", {
       aiModeratorMetrics: null,
       aiModeratorReviews: null,
       aiModeratorReviewAudit: null,
+      mediaPolicy: null,
       aiModeratorSimulation: null,
     discordSdk: null,
     auth: null,
@@ -465,7 +471,9 @@ export const useActivityStore = defineStore("activity", {
           this.activityRoles = settings.activity_roles;
           this.channelPurposes = settings.channel_purposes;
         } else if (module === "ai-moderator") {
-          this.aiModerator = await getAiModeratorSettings(guildId, this.token);
+          [this.aiModerator, this.mediaPolicy] = await Promise.all([
+            getAiModeratorSettings(guildId, this.token), getMediaPolicy(guildId, this.token),
+          ]);
         } else if (module === "ai-review") {
           this.aiModerator = await getAiModeratorSettings(guildId, this.token);
         } else if (module === "integrations") {
@@ -512,6 +520,26 @@ export const useActivityStore = defineStore("activity", {
     async saveAiModeratorPolicyValue(policy: Record<string, unknown>) {
       if (!this.session || !this.token || this.mode === "local") return;
       this.aiModerator = await saveAiModeratorPolicy(this.session.guild_id, this.token, policy);
+    },
+    async reloadMediaPolicy() {
+      if (!this.session || !this.token || this.mode === "local") return;
+      this.mediaPolicy = await getMediaPolicy(this.session.guild_id, this.token);
+    },
+    async saveMediaPolicyValue(media: EffectiveMediaPolicy["media"], expectedRevision: number) {
+      if (!this.session || !this.token || this.mode === "local") return;
+      await saveMediaPolicy(this.session.guild_id, this.token, expectedRevision, media);
+      const verified = await getMediaPolicy(this.session.guild_id, this.token);
+      if (verified.source !== "DATABASE" || verified.revision <= expectedRevision) {
+        throw new Error("Saved media policy could not be verified");
+      }
+      this.mediaPolicy = verified;
+    },
+    async resetMediaPolicyValue(expectedRevision: number) {
+      if (!this.session || !this.token || this.mode === "local") return;
+      await resetMediaPolicy(this.session.guild_id, this.token, expectedRevision);
+      const verified = await getMediaPolicy(this.session.guild_id, this.token);
+      if (verified.source !== "YAML_DEFAULT") throw new Error("Media policy reset could not be verified");
+      this.mediaPolicy = verified;
     },
     async loadAiModeratorMetrics() {
       if (!this.session || !this.token || this.mode === "local") return;

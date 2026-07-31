@@ -5,6 +5,7 @@ from activity.server.schemas.ai_moderation_channels import AiModerationChannelsP
 from activity.server.schemas.ai_moderation_policy import AiModerationPolicyPayload
 from activity.server.schemas.ai_moderation_review import AiModerationReviewUpdatePayload
 from activity.server.schemas.ai_moderation_simulation import AiModerationSimulationPayload
+from activity.server.schemas.media_policy import MediaPolicyPayload
 from activity.server.services.ai_moderation_service import AiModerationService
 
 router = APIRouter()
@@ -14,6 +15,24 @@ service = AiModerationService()
 @router.get("/api/ai-moderator/settings")
 async def get_ai_moderator_settings(guild_id: int = Query(gt=0), access_token: str = Depends(require_bearer_token)) -> dict[str, object]:
     return await service.get_settings(guild_id, access_token)
+
+
+@router.get("/api/ai-moderator/media-policy")
+async def get_media_policy(guild_id: int = Query(gt=0), access_token: str = Depends(require_bearer_token)) -> dict[str, object]:
+    return await service.get_media_policy(guild_id, access_token)
+
+
+@router.put("/api/ai-moderator/media-policy")
+async def save_media_policy(payload: MediaPolicyPayload, access_token: str = Depends(require_bearer_token)) -> dict[str, object]:
+    return await service.save_media_policy(payload, access_token)
+
+
+@router.delete("/api/ai-moderator/media-policy")
+async def reset_media_policy(
+    guild_id: int = Query(gt=0), expected_revision: int = Query(ge=1),
+    access_token: str = Depends(require_bearer_token),
+) -> dict[str, object]:
+    return await service.reset_media_policy(guild_id, expected_revision, access_token)
 
 
 @router.get("/api/ai-moderator/metrics")
