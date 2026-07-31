@@ -28,7 +28,7 @@ class AiModerationGuildPolicy(BaseModel):
     test_mode: bool = False
     enforcement_mode: AiModerationEnforcementMode = AiModerationEnforcementMode.SHADOW
     limited_min_confidence: float = Field(default=0.95, ge=0.0, le=1.0)
-    limited_hard_rule_labels: tuple[str, ...] = ("INVITE", "SCAM", "IMAGE_SCAM")
+    limited_hard_rule_labels: tuple[str, ...] = ("INVITE", "SCAM")
     beta_enforcement_acknowledged: bool = False
     allow_automated_timeout: bool = False
     allow_automated_kick: bool = False

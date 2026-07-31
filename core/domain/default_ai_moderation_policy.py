@@ -57,11 +57,6 @@ def default_ai_moderation_policy() -> AiModerationGuildPolicy:
                 min_action=AiModerationAction.REVIEW,
                 max_action=AiModerationAction.DELETE,
             ),
-            "IMAGE_SCAM": AiModerationLabelPolicy(
-                risk_threshold=55,
-                min_action=AiModerationAction.DELETE_WARN,
-                max_action=AiModerationAction.DELETE_WARN,
-            ),
         }
     )
 
