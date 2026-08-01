@@ -15,6 +15,7 @@ const auditOffset = ref(0);
 const editing = ref<AiModerationReviewItem | null>(null);
 const feedback = ref("");
 const isLoading = ref(false);
+const isSaving = ref(false);
 const actions: AiModerationAction[] = ["IGNORE", "LOG", "REVIEW", "WARN", "DELETE", "DELETE_WARN", "TIMEOUT", "KICK", "BAN"];
 const queue = computed(() => activity.aiModeratorReviews);
 const audit = computed(() => activity.aiModeratorReviewAudit);
@@ -47,13 +48,16 @@ function open(item: AiModerationReviewItem) {
 }
 
 async function save() {
-  if (!editing.value) return;
+  if (!editing.value || isSaving.value) return;
+  isSaving.value = true;
   try {
     await activity.saveAiModeratorReview(editing.value);
     feedback.value = t("review.saved");
     await reloadQueue();
   } catch (error) {
     feedback.value = error instanceof Error ? error.message : t("review.save_failed");
+  } finally {
+    isSaving.value = false;
   }
 }
 
@@ -105,7 +109,7 @@ function timeLabel(value: string) {
         <header><div><span>{{ $t("review.editing") }}</span><h4>{{ $t("review.decision", { id: editing.id, action: editing.action }) }}</h4></div><button class="ghost-button compact" type="button" @click="editing = null">{{ $t("review.close") }}</button></header>
         <label><span>{{ $t("review.message_label") }}</span><textarea v-model.trim="editing.message_text" maxlength="8000" required /></label>
         <div class="ai-policy-controls"><label><span>{{ $t("review.risk") }}</span><input v-model.number="editing.risk_score" type="number" min="0" max="100" step="0.1" /></label><label><span>{{ $t("review.severity") }}</span><input v-model.number="editing.severity" type="number" min="0" max="5" /></label><label><span>{{ $t("review.action") }}</span><select v-model="editing.action"><option v-for="action in actions" :key="action" :value="action">{{ action }}</option></select></label><label><span>{{ $t("review.status") }}</span><select v-model="editing.status"><option value="OPEN">{{ $t("review.open") }}</option><option value="RESOLVED">{{ $t("review.resolved") }}</option></select></label></div>
-        <div class="form-actions"><button class="primary-button" type="submit">{{ $t("review.save") }}</button></div>
+        <div class="form-actions"><button class="primary-button" type="submit" :disabled="isSaving">{{ $t("review.save") }}</button></div>
       </form>
     </template>
 

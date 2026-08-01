@@ -264,6 +264,19 @@ class AiModerationCog(commands.Cog):
             if self._is_flood_timeout(decision):
                 self._flood_coordinator.abort(request.guild_id, request.user_id)
             logger.exception("AI moderation action failed guild_id=%s message_id=%s", request.guild_id, request.message_id)
+            try:
+                await self._queue.report_action(
+                    decision.event_id,
+                    decision.action,
+                    "FAILED",
+                    decision.dry_run,
+                )
+            except Exception:
+                logger.exception(
+                    "Could not report terminal AI moderation failure guild_id=%s message_id=%s",
+                    request.guild_id,
+                    request.message_id,
+                )
         # Audit persistence must never suppress the moderator-facing decision log.
         # The log is the immediate feedback loop for Shadow Mode and is useful even
         # when a transient database problem prevents dataset collection.
@@ -440,7 +453,11 @@ class AiModerationCog(commands.Cog):
     async def _record_ai_punishment(self, request: AiModerationRequest, action: str, dry_run: bool) -> None:
         if dry_run:
             return
-        punishment_type = {"TIMEOUT": PunishmentType.TIMEOUT, "BAN": PunishmentType.BAN}.get(action)
+        punishment_type = {
+            "TIMEOUT": PunishmentType.TIMEOUT,
+            "KICK": PunishmentType.KICK,
+            "BAN": PunishmentType.BAN,
+        }.get(action)
         if punishment_type is None:
             return
         await self._punishment_repository.add_punishment(

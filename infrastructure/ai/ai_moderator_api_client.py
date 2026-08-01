@@ -80,6 +80,45 @@ class AiModeratorApiClient:
         )
         response.raise_for_status()
 
+    async def submit_feedback(
+        self,
+        *,
+        guild_id: int,
+        message_id: int,
+        feedback_type: str,
+        labels: tuple[str, ...],
+        primary_label: str | None,
+        severity: int,
+        recommended_action: str,
+        original_action: str,
+        moderator_id: str,
+        idempotency_key: str,
+        notes: str | None = None,
+    ) -> dict[str, Any]:
+        response = await self._http_client().post(
+            f"{self._base_url}/moderation/feedback",
+            headers={
+                "X-Internal-Api-Key": self._api_key,
+                "X-Correlation-Id": idempotency_key,
+            },
+            json={
+                "guild_id": str(guild_id),
+                "message_id": str(message_id),
+                "feedback_type": feedback_type,
+                "labels": list(labels),
+                "primary_label": primary_label,
+                "severity": severity,
+                "recommended_action": recommended_action,
+                "original_action": original_action,
+                "moderator_id": moderator_id,
+                "annotation_source": "activity_review",
+                "notes": notes,
+                "idempotency_key": idempotency_key,
+            },
+        )
+        response.raise_for_status()
+        return dict(response.json())
+
     async def simulate(self, request: AiModerationRequest) -> dict[str, Any]:
         """Classify a dashboard test message without writing a dataset event."""
         response = await self._http_client().post(

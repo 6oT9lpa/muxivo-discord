@@ -1,6 +1,8 @@
 """Activity-facing read/write service for per-guild AI moderation settings."""
 
 from datetime import datetime, timezone
+import hashlib
+import hmac
 from typing import Any
 
 from activity.server.dependencies import get_db
@@ -292,11 +294,21 @@ class AiModerationService:
     async def update_review_item(self, item_id: int, payload: Any, access_token: str) -> dict[str, object]:
         actor_id = await self._ensure_review_access(payload.guild_id, access_token)
         current = await get_db().fetch_one(
-            "SELECT id, message_text, risk_score, severity, action, status, revision FROM ai_moderation_review_items WHERE id = ? AND guild_id = ?",
+            """SELECT item.id, item.message_id, item.labels_json, item.message_text,
+                      item.risk_score, item.severity, item.action, item.status, item.revision,
+                      event.primary_label AS original_primary_label
+               FROM ai_moderation_review_items item
+               LEFT JOIN ai_moderation_events event
+                 ON event.guild_id = item.guild_id AND event.message_id = item.message_id
+               WHERE item.id = ? AND item.guild_id = ?""",
             (item_id, payload.guild_id),
         )
         if current is None:
             raise HTTPException(status_code=404, detail="Review item was not found")
+        if int(current["revision"]) != payload.revision:
+            raise HTTPException(status_code=409, detail="Review item was changed by another moderator; reload it before saving")
+        if payload.status == "RESOLVED":
+            await self._deliver_review_feedback(item_id, payload, current, actor_id)
         before = dict(current)
         result = await get_db().execute(
             """UPDATE ai_moderation_review_items SET message_text = ?, risk_score = ?, severity = ?, action = ?, status = ?,
@@ -319,6 +331,62 @@ class AiModerationService:
             "SELECT id, guild_id, channel_id, message_id, user_id, message_text, risk_score, severity, action, labels_json, status, revision, created_at, updated_at, resolved_at, resolved_by FROM ai_moderation_review_items WHERE id = ?", (item_id,)
         )
         return self._review_item_payload(refreshed) if refreshed else after
+
+    async def _deliver_review_feedback(
+        self,
+        item_id: int,
+        payload: Any,
+        current: dict[str, Any],
+        actor_id: int,
+    ) -> None:
+        config = get_config()
+        api_key = config.ai_moderator_internal_api_key
+        if api_key is None:
+            raise HTTPException(status_code=503, detail="AI Moderator feedback is not configured")
+        labels = tuple(str(label) for label in (current.get("labels_json") or ()))
+        original_action = str(current["action"])
+        feedback_type = "confirmed" if payload.action.value == original_action else "corrected"
+        idempotency_key = f"activity-review-{payload.guild_id}-{item_id}-{payload.revision}"
+        reviewer_id = hmac.new(
+            api_key.get_secret_value().encode("utf-8"),
+            str(actor_id).encode("ascii"),
+            hashlib.sha256,
+        ).hexdigest()
+        client = AiModeratorApiClient(
+            config.ai_moderator_api_url,
+            api_key.get_secret_value(),
+            config.ai_moderator_request_timeout_seconds,
+        )
+        try:
+            await client.submit_feedback(
+                guild_id=payload.guild_id,
+                message_id=int(current["message_id"]),
+                feedback_type=feedback_type,
+                labels=labels,
+                primary_label=str(current["original_primary_label"]) if current.get("original_primary_label") else None,
+                severity=payload.severity,
+                recommended_action=payload.action.value,
+                original_action=original_action,
+                moderator_id=reviewer_id,
+                idempotency_key=idempotency_key,
+            )
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                "AI Moderator rejected feedback guild_id=%s item_id=%s status=%s",
+                payload.guild_id,
+                item_id,
+                exc.response.status_code,
+            )
+            raise HTTPException(status_code=502, detail="AI Moderator rejected the review feedback") from exc
+        except httpx.RequestError as exc:
+            logger.warning(
+                "AI Moderator feedback unavailable guild_id=%s item_id=%s",
+                payload.guild_id,
+                item_id,
+            )
+            raise HTTPException(status_code=503, detail="AI Moderator feedback is unavailable") from exc
+        finally:
+            await client.close()
 
     @staticmethod
     def _review_item_payload(row: dict[str, Any]) -> dict[str, Any]:

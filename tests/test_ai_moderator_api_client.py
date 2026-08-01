@@ -105,3 +105,40 @@ def test_media_policy_requests_forward_verified_scope_and_revision() -> None:
         "media": {"ocr": {"enabled": True}},
     }
     assert requests[2].url.params["expected_revision"] == "4"
+
+
+def test_feedback_request_uses_internal_api_and_idempotent_lineage() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"status": "accepted", "event_id": 9, "correlation_id": "cid"})
+
+    async def exercise() -> None:
+        client = AiModeratorApiClient("http://ai-moderator", "internal-key", 1)
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            await client.submit_feedback(
+                guild_id=123,
+                message_id=456,
+                feedback_type="corrected",
+                labels=("SCAM",),
+                primary_label="SCAM",
+                severity=4,
+                recommended_action="KICK",
+                original_action="REVIEW",
+                moderator_id="a" * 64,
+                idempotency_key="activity-review-123-7-1",
+            )
+        finally:
+            await client.close()
+
+    asyncio.run(exercise())
+
+    assert requests[0].url.path == "/moderation/feedback"
+    assert requests[0].headers["x-internal-api-key"] == "internal-key"
+    payload = json.loads(requests[0].content)
+    assert payload["guild_id"] == "123"
+    assert payload["message_id"] == "456"
+    assert payload["recommended_action"] == "KICK"
+    assert payload["idempotency_key"] == "activity-review-123-7-1"

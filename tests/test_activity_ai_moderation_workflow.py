@@ -88,6 +88,21 @@ async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(a
     monkeypatch.setattr(service._access_service, "fetch_user_context", context)
     monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
 
+    delivered_feedback = []
+
+    class _Config:
+        ai_moderator_api_url = "http://ai-moderator"
+        ai_moderator_internal_api_key = SecretStr("feedback-secret-key")
+        ai_moderator_request_timeout_seconds = 1
+
+    class _Client:
+        def __init__(self, *_): pass
+        async def submit_feedback(self, **payload): delivered_feedback.append(payload); return {"status": "accepted"}
+        async def close(self): pass
+
+    monkeypatch.setattr(ai_service_module, "get_config", lambda: _Config())
+    monkeypatch.setattr(ai_service_module, "AiModeratorApiClient", _Client)
+
     await activity_ai_db.execute("INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,))
     await activity_ai_db.execute("INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'ADMIN', ?)", (guild_id, actor_id, actor_id))
     await activity_ai_db.execute(
@@ -107,6 +122,13 @@ async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(a
     audit = await service.list_review_audit(guild_id, "token", 20, 0)
     assert audit["total"] == 1
     assert audit["items"][0]["action"] == "RESOLVED"
+    assert delivered_feedback[0]["guild_id"] == guild_id
+    assert delivered_feedback[0]["message_id"] == 2
+    assert delivered_feedback[0]["recommended_action"] == "DELETE"
+    assert delivered_feedback[0]["original_action"] == "REVIEW"
+    assert delivered_feedback[0]["feedback_type"] == "corrected"
+    assert len(delivered_feedback[0]["moderator_id"]) == 64
+    assert delivered_feedback[0]["idempotency_key"].endswith(f"-{item['revision']}")
 
 
 @pytest.mark.asyncio
