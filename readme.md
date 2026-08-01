@@ -124,7 +124,7 @@ Current panels:
 
 - Dashboard: module overview and recent Activity audit events.
 - Access Control: Activity roles and module permissions.
-- Role Panels: maps synchronized Discord roles to Activity access roles.
+- Activity Role Mapping (legacy route key: `role-panels`): maps synchronized Discord roles to Activity access roles. Public Discord role-panel messages are a separate bot feature.
 - Welcome Alerts: welcome embed setup, media, channel buttons, preview, reset.
 - Creator Alerts: saved creator sources, templates, preview, button label, ping role rules.
 - Dev Blog: drafts and Components V2 publishing.

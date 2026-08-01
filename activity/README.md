@@ -19,7 +19,7 @@ The Activity is a Vue 3 frontend loaded inside Discord and a FastAPI backend tha
 
 - Dashboard - module overview and recent Activity audit events.
 - Access Control - Activity roles and module permissions.
-- Role Panels - synchronized Discord roles mapped to Activity roles.
+- Activity Role Mapping (legacy route key: `role-panels`) - synchronized Discord roles mapped to Activity access roles; this is distinct from public Discord role-panel messages.
 - Welcome Alerts - welcome embed settings, reset, and test send.
 - Creator Alerts - Twitch/YouTube/Kick sources, templates, preview, button labels, saved source cards.
 - Dev Blog - drafts, Components V2 publishing, image galleries, Dev Blog ping.
