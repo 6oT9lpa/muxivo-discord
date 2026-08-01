@@ -67,6 +67,7 @@ class MemberEventsCog(commands.Cog):
         )
         
         try:
+            await self._join_history_service.record_leave(member.guild.id, member.id)
             await self._log_member_leave(member)
         except Exception as e:
             logger.error(f"Error handling member leave for {member.id}: {e}", exc_info=True)

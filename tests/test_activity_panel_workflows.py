@@ -177,6 +177,35 @@ async def test_server_stats_returns_thirty_daily_chart_points(activity_db, monke
     assert len(payload["daily"]) == 30
 
 
+@pytest.mark.asyncio
+async def test_server_stats_exposes_deduplicated_member_growth_and_current_state(monkeypatch):
+    service = ActivityStatsService()
+
+    async def query(_query, _params, label):
+        values = {
+            "server message stats": {"total_messages": 20, "active_users": 4, "active_channels": 2, "dau": 2, "wau": 4, "mau": 4},
+            "server voice stats": {"voice_users": 3, "total_voice_minutes": 90},
+            "server join stats": {"joins": 5, "leaves": 2, "joins_24h": 1, "joins_7d": 3, "joins_30d": 5, "leaves_24h": 0, "leaves_7d": 1, "leaves_30d": 2, "membership_history_since": datetime(2026, 8, 1)},
+            "server moderation stats": {"moderation_events": 6},
+        }
+        return values[label]
+
+    async def guild_state(*_args, **_kwargs):
+        return {"approximate_member_count": 123}
+
+    monkeypatch.setattr(service, "_fetch_one_or_empty", query)
+    monkeypatch.setattr(service._discord, "safe_bot_request", guild_state)
+
+    summary = await service._query_server_stats(100, 30)
+
+    assert summary["joins"] == 5
+    assert summary["leaves"] == 2
+    assert summary["net_member_growth"] == 3
+    assert summary["current_member_count"] == 123
+    assert summary["messages_per_active_user"] == 5
+    assert summary["membership_history_complete"] is False
+
+
 def test_welcome_config_serializes_snowflakes_as_strings():
     config = normalize_config(
         {

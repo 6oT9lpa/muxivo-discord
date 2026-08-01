@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from activity.server.dependencies import get_db
@@ -28,14 +29,18 @@ class ActivityStatsService:
         logger.info("Searching Activity user stats guild_id=%s query=%s", guild_id, query)
         await self._access_service.ensure_module_access(access_token, str(guild_id), "server-stats")
         members = await self._discord.search_members(str(guild_id), query, 10)
-        stats = []
-        for member in members:
-            row = await get_db().fetch_one(
-                "SELECT * FROM user_stats WHERE guild_id = ? AND user_id = ?",
-                (guild_id, int(member.id)),
-            )
-            stats.append({"member": member.model_dump(), "stats": row or self._empty_user_stats(guild_id, int(member.id))})
-        return stats
+        member_ids = [int(member.id) for member in members]
+        stats_by_user = await self._query_user_stats_batch(guild_id, member_ids)
+        return [
+            {
+                "member": member.model_dump(),
+                "stats": stats_by_user.get(
+                    int(member.id),
+                    self._empty_user_stats(guild_id, int(member.id)),
+                ),
+            }
+            for member in members
+        ]
 
     def _empty_user_stats(self, guild_id: int, user_id: int) -> dict[str, Any]:
         return {
@@ -46,7 +51,96 @@ class ActivityStatsService:
             "warnings_count": 0,
             "last_message": None,
             "joined_at": None,
+            "first_joined_at": None,
+            "latest_joined_at": None,
+            "join_count": 0,
+            "messages_7d": 0,
+            "messages_30d": 0,
+            "active_days_30d": 0,
+            "timeouts_count": 0,
+            "kicks_count": 0,
+            "bans_count": 0,
+            "ai_flags": 0,
+            "moderator_overrides": 0,
         }
+
+    async def _query_user_stats_batch(
+        self,
+        guild_id: int,
+        user_ids: list[int],
+    ) -> dict[int, dict[str, Any]]:
+        if not user_ids:
+            return {}
+        params = (guild_id, user_ids)
+        base_rows = await self._fetch_all_or_empty(
+            "SELECT * FROM user_stats WHERE guild_id = ? AND user_id = ANY(?::bigint[])",
+            params,
+            "user cumulative stats",
+        )
+        activity_rows = await self._fetch_all_or_empty(
+            """
+            SELECT user_id,
+                   COUNT(*) FILTER (WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL '7 days') AS messages_7d,
+                   COUNT(*) FILTER (WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS messages_30d,
+                   COUNT(DISTINCT timestamp::date) FILTER (WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS active_days_30d
+            FROM messages
+            WHERE guild_id = ? AND user_id = ANY(?::bigint[]) AND deleted = 0
+            GROUP BY user_id
+            """,
+            params,
+            "user period stats",
+        )
+        join_rows = await self._fetch_all_or_empty(
+            """
+            SELECT user_id, first_joined_at, latest_joined_at, join_count
+            FROM member_join_history
+            WHERE guild_id = ? AND user_id = ANY(?::bigint[])
+            """,
+            params,
+            "user join stats",
+        )
+        punishment_rows = await self._fetch_all_or_empty(
+            """
+            SELECT user_id,
+                   COUNT(*) FILTER (WHERE type = 'warn') AS warnings_count,
+                   COUNT(*) FILTER (WHERE type IN ('mute', 'timeout')) AS timeouts_count,
+                   COUNT(*) FILTER (WHERE type = 'kick') AS kicks_count,
+                   COUNT(*) FILTER (WHERE type = 'ban') AS bans_count
+            FROM punishments
+            WHERE guild_id = ? AND user_id = ANY(?::bigint[])
+            GROUP BY user_id
+            """,
+            params,
+            "user moderation stats",
+        )
+        ai_rows = await self._fetch_all_or_empty(
+            """
+            SELECT event.user_id,
+                   COUNT(*) AS ai_flags,
+                   COUNT(label.id) FILTER (WHERE label.label <> event.primary_label AND label.status = 'ACTIVE') AS moderator_overrides
+            FROM ai_moderation_events event
+            LEFT JOIN manual_labels label
+              ON label.guild_id = event.guild_id AND label.message_id = event.message_id
+            WHERE event.guild_id = ? AND event.user_id = ANY(?::bigint[])
+            GROUP BY event.user_id
+            """,
+            params,
+            "user AI moderation stats",
+        )
+        result = {
+            user_id: self._empty_user_stats(guild_id, user_id)
+            for user_id in user_ids
+        }
+        for rows in (base_rows, activity_rows, join_rows, punishment_rows, ai_rows):
+            for row in rows:
+                user_id = int(row["user_id"])
+                result[user_id].update(
+                    {
+                        key: (str(value) if isinstance(value, datetime) else value)
+                        for key, value in row.items()
+                    }
+                )
+        return result
 
     async def _query_server_stats(self, guild_id: int, period: int) -> dict[str, Any]:
         cutoff = f"-{period} days"
@@ -54,7 +148,10 @@ class ActivityStatsService:
             """
             SELECT COUNT(*) AS total_messages,
                    COUNT(DISTINCT user_id) AS active_users,
-                   COUNT(DISTINCT channel_id) AS active_channels
+                   COUNT(DISTINCT channel_id) AS active_channels,
+                   COUNT(DISTINCT user_id) FILTER (WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL '1 day') AS dau,
+                   COUNT(DISTINCT user_id) FILTER (WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL '7 days') AS wau,
+                   COUNT(DISTINCT user_id) FILTER (WHERE timestamp >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS mau
             FROM messages
             WHERE guild_id = ? AND timestamp >= CURRENT_TIMESTAMP + (?::interval) AND deleted = 0
             """,
@@ -71,20 +168,57 @@ class ActivityStatsService:
             (guild_id,),
             "server voice stats",
         )
-        joins = await self._fetch_one_or_empty(
+        membership = await self._fetch_one_or_empty(
             """
-            SELECT SUM(CASE WHEN event_type = 'member_join' THEN 1 ELSE 0 END) AS joins,
-                   SUM(CASE WHEN event_type = 'member_leave' THEN 1 ELSE 0 END) AS leaves
-            FROM guild_event_logs
+            SELECT
+                COUNT(*) FILTER (WHERE event_type = 'member_join' AND occurred_at >= CURRENT_TIMESTAMP + (?::interval)) AS joins,
+                COUNT(*) FILTER (WHERE event_type = 'member_leave' AND occurred_at >= CURRENT_TIMESTAMP + (?::interval)) AS leaves,
+                COUNT(*) FILTER (WHERE event_type = 'member_join' AND occurred_at >= CURRENT_TIMESTAMP - INTERVAL '1 day') AS joins_24h,
+                COUNT(*) FILTER (WHERE event_type = 'member_join' AND occurred_at >= CURRENT_TIMESTAMP - INTERVAL '7 days') AS joins_7d,
+                COUNT(*) FILTER (WHERE event_type = 'member_join' AND occurred_at >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS joins_30d,
+                COUNT(*) FILTER (WHERE event_type = 'member_leave' AND occurred_at >= CURRENT_TIMESTAMP - INTERVAL '1 day') AS leaves_24h,
+                COUNT(*) FILTER (WHERE event_type = 'member_leave' AND occurred_at >= CURRENT_TIMESTAMP - INTERVAL '7 days') AS leaves_7d,
+                COUNT(*) FILTER (WHERE event_type = 'member_leave' AND occurred_at >= CURRENT_TIMESTAMP - INTERVAL '30 days') AS leaves_30d,
+                MIN(occurred_at) AS membership_history_since
+            FROM member_lifecycle_events
+            WHERE guild_id = ? AND retention_until > CURRENT_TIMESTAMP
+            """,
+            (cutoff, cutoff, guild_id),
+            "server join stats",
+        )
+        moderation = await self._fetch_one_or_empty(
+            """
+            SELECT COUNT(*) AS moderation_events
+            FROM ai_moderation_events
             WHERE guild_id = ? AND created_at >= CURRENT_TIMESTAMP + (?::interval)
             """,
             (guild_id, cutoff),
-            "server join stats",
+            "server moderation stats",
         )
+        guild = await self._discord.safe_bot_request(
+            "GET",
+            f"/guilds/{guild_id}",
+            params={"with_counts": "true"},
+        )
+        guild_payload = guild if isinstance(guild, dict) else {}
+        normalized_messages = {key: int(value or 0) for key, value in (messages or {}).items()}
+        normalized_membership = {
+            key: (str(value) if key == "membership_history_since" and value is not None else int(value or 0))
+            for key, value in (membership or {}).items()
+        }
+        joins = int(normalized_membership.get("joins", 0))
+        leaves = int(normalized_membership.get("leaves", 0))
+        active_users = int(normalized_messages.get("active_users", 0))
+        total_messages = int(normalized_messages.get("total_messages", 0))
         return {
-            **(messages or {}),
-            **{f"voice_{key}": value for key, value in (voice or {}).items()},
-            **(joins or {}),
+            **normalized_messages,
+            "messages_per_active_user": round(total_messages / active_users, 2) if active_users else 0,
+            **{f"voice_{key}": int(value or 0) for key, value in (voice or {}).items()},
+            **normalized_membership,
+            "net_member_growth": joins - leaves,
+            "current_member_count": int(guild_payload.get("approximate_member_count") or 0),
+            "moderation_events": int((moderation or {}).get("moderation_events") or 0),
+            "membership_history_complete": False,
             "period_days": period,
         }
 

@@ -22,6 +22,7 @@ const maxDaily = computed(() => Math.max(1, ...dailyStats.value.map((row) => row
 const summaryCards = computed(() => {
   const summary = activity.serverStats?.summary || {};
   return [
+    ["current_member_count", "stats.current_members"],
     ["total_messages", "stats.total_messages"],
     ["active_users", "stats.active_users"],
     ["active_channels", "stats.active_channels"],
@@ -29,6 +30,8 @@ const summaryCards = computed(() => {
     ["voice_voice_users", "stats.voice_users"],
     ["joins", "stats.joins"],
     ["leaves", "stats.leaves"],
+    ["net_member_growth", "stats.net_growth"],
+    ["moderation_events", "stats.moderation_events"],
     ["period_days", "stats.period_days"],
   ].map(([key, label]) => ({ key, label: t(label), value: formatRecordValue(summary[key]), delta: t(key === "period_days" ? "stats.selected_range" : "stats.tracked_activity"), tone: "neutral" as const }));
 });
@@ -58,6 +61,9 @@ watch(userSearch, (value) => {
   <section class="panel-section module-tabs-panel"><PanelTabNav v-model="activeTab" :tabs="tabs" :aria-label="$t('module.server-stats')" /></section>
 
   <section v-if="activeTab === 'summary'" class="panel-section module-content-panel stats-summary-panel">
+    <p v-if="activity.serverStats?.summary?.membership_history_since" class="field-note">
+      {{ $t("stats.membership_history_since", { value: activity.serverStats.summary.membership_history_since }) }}
+    </p>
     <div class="stats-grid"><StatCard v-for="metric in summaryCards" :key="metric.key" :metric="metric" /></div>
   </section>
 

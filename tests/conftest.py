@@ -37,6 +37,7 @@ _RUNTIME_TABLES = """
     role_panel_buttons,
     message_logs,
     guild_event_logs,
+    member_lifecycle_events,
     server_channel_purposes,
     welcome_config,
     voice_rooms,

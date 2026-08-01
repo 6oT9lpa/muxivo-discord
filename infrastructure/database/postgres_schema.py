@@ -293,6 +293,19 @@ class PostgresSchema:
             "CREATE INDEX IF NOT EXISTS idx_guild_event_logs_event ON guild_event_logs(event_type)",
             "CREATE INDEX IF NOT EXISTS idx_guild_event_logs_retention ON guild_event_logs(retention_until)",
             """
+            CREATE TABLE IF NOT EXISTS member_lifecycle_events (
+                id BIGSERIAL PRIMARY KEY,
+                guild_id BIGINT NOT NULL,
+                user_id BIGINT NOT NULL,
+                event_type TEXT NOT NULL CHECK (event_type IN ('member_join', 'member_leave')),
+                occurred_at TIMESTAMPTZ NOT NULL,
+                retention_until TIMESTAMPTZ NOT NULL,
+                UNIQUE (guild_id, user_id, event_type, occurred_at)
+            )
+            """,
+            "CREATE INDEX IF NOT EXISTS idx_member_lifecycle_guild_occurred ON member_lifecycle_events(guild_id, occurred_at)",
+            "CREATE INDEX IF NOT EXISTS idx_member_lifecycle_retention ON member_lifecycle_events(retention_until)",
+            """
             CREATE TABLE IF NOT EXISTS server_channel_purposes (
                 id BIGSERIAL PRIMARY KEY,
                 guild_id BIGINT NOT NULL,

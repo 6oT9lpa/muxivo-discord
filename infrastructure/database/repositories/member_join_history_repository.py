@@ -21,4 +21,29 @@ class MemberJoinHistoryRepository(BaseRepository, MemberJoinHistoryRepositoryInt
             """,
             (guild_id, user_id, joined_at, joined_at),
         )
+        await self._record_lifecycle_event(guild_id, user_id, "member_join", joined_at)
         return existing is None
+
+    async def record_leave(self, guild_id: int, user_id: int, left_at: datetime) -> bool:
+        return await self._record_lifecycle_event(guild_id, user_id, "member_leave", left_at)
+
+    async def _record_lifecycle_event(
+        self,
+        guild_id: int,
+        user_id: int,
+        event_type: str,
+        occurred_at: datetime,
+    ) -> bool:
+        await self.execute_write(
+            "DELETE FROM member_lifecycle_events WHERE retention_until <= CURRENT_TIMESTAMP"
+        )
+        result = await self.execute_write(
+            """
+            INSERT INTO member_lifecycle_events (
+                guild_id, user_id, event_type, occurred_at, retention_until
+            ) VALUES (?, ?, ?, ?, ? + INTERVAL '365 days')
+            ON CONFLICT (guild_id, user_id, event_type, occurred_at) DO NOTHING
+            """,
+            (guild_id, user_id, event_type, occurred_at, occurred_at),
+        )
+        return bool(result.rowcount)
