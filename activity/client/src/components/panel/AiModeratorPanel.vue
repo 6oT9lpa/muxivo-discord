@@ -8,7 +8,7 @@ import { useActivityStore } from "../../stores/activity.store";
 import type { AiModerationAction, AiModerationLabelPolicy, AiModerationPolicy } from "../../types/activity.types";
 import { t } from "../../i18n";
 
-type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "model" | "metrics";
+type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics";
 type ExclusionKind = "user" | "role" | "channel";
 
 type LabelDefinition = {
@@ -38,16 +38,16 @@ const actionRank: Record<AiModerationAction, number> = Object.fromEntries(
 ) as Record<AiModerationAction, number>;
 const labelDefinitions: LabelDefinition[] = [
   ...([
-    ["SPAM", 30, 50, "LOG", "DELETE"], ["ADVERTISEMENT", 25, 50, "LOG", "DELETE"], ["INVITE", 20, 50, "LOG", "DELETE"],
-    ["SCAM", 55, 60, "DELETE_WARN", "BAN"], ["TOXIC", 45, 50, "LOG", "WARN"], ["PROFANITY", 25, 50, "LOG", "WARN"],
-    ["POLITICS_IRL", 40, 50, "REVIEW", "REVIEW"], ["HATE", 55, 30, "WARN", "TIMEOUT"], ["THREAT", 65, 30, "DELETE_WARN", "BAN"],
-    ["NSFW", 55, 60, "DELETE", "TIMEOUT"], ["EVASION", 50, 50, "WARN", "TIMEOUT"], ["FLOOD", 30, 50, "LOG", "DELETE"],
-    ["URL", 45, 50, "REVIEW", "DELETE"],
-  ] as Array<[string, number, number, AiModerationAction, AiModerationAction]>).map(([key, risk, modelFloor, min, max]) => ({
-    key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, modelFloor, min, max),
+    ["SPAM", 30, "LOG", "DELETE"], ["ADVERTISEMENT", 25, "LOG", "DELETE"], ["INVITE", 20, "LOG", "DELETE"],
+    ["SCAM", 55, "DELETE_WARN", "BAN"], ["TOXIC", 45, "LOG", "WARN"], ["PROFANITY", 25, "LOG", "WARN"],
+    ["POLITICS_IRL", 40, "REVIEW", "REVIEW"], ["HATE", 55, "WARN", "TIMEOUT"], ["THREAT", 65, "DELETE_WARN", "BAN"],
+    ["NSFW", 55, "DELETE", "TIMEOUT"], ["EVASION", 50, "WARN", "TIMEOUT"], ["FLOOD", 30, "LOG", "DELETE"],
+    ["URL", 45, "REVIEW", "DELETE"],
+  ] as Array<[string, number, AiModerationAction, AiModerationAction]>).map(([key, risk, min, max]) => ({
+    key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, min, max),
   })),
 ];
-const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", "model", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
+const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
   .map((key) => ({ key, labelKey: `ai.tab.${key}` })));
 const exclusionSections = computed(() => ([
   { key: "user" as const, titleKey: "ai.exclusions.users", helpKey: "ai.exclusions.users_help", placeholderKey: "ai.exclusions.search_users", values: moderationPolicy.excluded_user_ids, candidates: activity.members.map((member) => ({ id: member.id, label: `${member.display_name} (@${member.username})`, search: `${member.display_name} ${member.username} ${member.id}` })) },
@@ -79,8 +79,8 @@ onBeforeUnmount(() => {
 });
 
 
-function policy(riskThreshold: number, modelMinRisk: number, minAction: AiModerationAction, maxAction: AiModerationAction): AiModerationLabelPolicy {
-  return { risk_threshold: riskThreshold, model_min_risk: modelMinRisk, min_action: minAction, max_action: maxAction };
+function policy(riskThreshold: number, minAction: AiModerationAction, maxAction: AiModerationAction): AiModerationLabelPolicy {
+  return { risk_threshold: riskThreshold, min_action: minAction, max_action: maxAction };
 }
 
 function emptyPolicy(): AiModerationPolicy {
@@ -122,7 +122,7 @@ function clonePolicy(source: AiModerationPolicy | undefined): AiModerationPolicy
     allowed_domains: [...source.allowed_domains],
     labels: Object.fromEntries(labelDefinitions.map((item) => {
       const sourceRule = source.labels[item.key];
-      return [item.key, { ...item.defaultPolicy, ...sourceRule, model_min_risk: sourceRule?.model_min_risk ?? item.defaultPolicy.model_min_risk }];
+      return [item.key, { ...item.defaultPolicy, ...sourceRule }];
     })),
     blacklist_action: source.blacklist_action,
     unapproved_domain_action: source.unapproved_domain_action,
@@ -359,14 +359,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="ai-risk-list">
         <label v-for="label in labelDefinitions" :key="label.key" class="ai-risk-card"><span><strong>{{ $t(label.titleKey) }}</strong><small>{{ $t(label.descriptionKey) }}</small></span><input v-model.number="policyFor(label.key).risk_threshold" type="range" min="0" max="100" step="1" /><output>{{ policyFor(label.key).risk_threshold }}</output></label>
       </div>
-    </div>
-
-    <div v-else-if="activeTab === 'model'" class="muxivo-coreation-workspace">
-      <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t("ai.model_sensitivity") }}</span><h3>{{ $t("ai.model_sensitivity_heading") }}</h3><p>{{ $t("ai.model_sensitivity_help") }}</p></div></div>
-      <div class="ai-risk-list">
-        <label v-for="label in labelDefinitions" :key="label.key" class="ai-risk-card"><span><strong>{{ $t(label.titleKey) }}</strong><small>{{ $t("ai.model_signal_floor_help") }}</small></span><input v-model.number="policyFor(label.key).model_min_risk" type="range" min="0" max="100" step="1" /><output>{{ policyFor(label.key).model_min_risk }}</output></label>
-      </div>
-      <p class="field-note">{{ $t("ai.model_sensitivity_note") }}</p>
     </div>
 
     <div v-else class="muxivo-coreation-workspace">

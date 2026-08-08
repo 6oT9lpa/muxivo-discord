@@ -77,9 +77,6 @@ class AiModeratorApiClient:
                 "author_role_ids",
                 "author_is_bot",
                 "attachments",
-                # The media API deliberately owns score thresholds in its policy.
-                # This legacy bot-only hint is not part of its strict request schema.
-                "model_min_risk_by_label",
             },
         )
         payload["platform"] = "discord"

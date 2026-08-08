@@ -35,7 +35,6 @@ def _request(*, attachments: tuple[MediaAttachmentRequest, ...] = ()) -> AiModer
         has_attachments=bool(attachments),
         attachment_count=len(attachments),
         attachments=attachments,
-        model_min_risk_by_label={"SCAM": 80},
     )
 
 
@@ -148,7 +147,6 @@ async def test_api_client_routes_text_and_media_to_one_decision_endpoint(
         assert body["attachments"][0]["download_url"].startswith("https://cdn.discordapp.com/")
     else:
         assert "attachments" not in body
-    assert "model_min_risk_by_label" not in body.get("message", body)
     assert decision.action == "DELETE_WARN"
 
 

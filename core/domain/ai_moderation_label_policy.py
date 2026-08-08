@@ -7,9 +7,6 @@ class AiModerationLabelPolicy(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     risk_threshold: float = Field(default=0, ge=0, le=100)
-    # Per-label raw ruBERT score floor. It controls whether this class enters
-    # the rule engine; ``risk_threshold`` below controls the later response.
-    model_min_risk: int = Field(default=0, ge=0, le=100)
     min_action: AiModerationAction = AiModerationAction.LOG
     max_action: AiModerationAction = AiModerationAction.BAN
 

@@ -254,7 +254,6 @@ export type AiModerationAction = "IGNORE" | "LOG" | "REVIEW" | "WARN" | "DELETE"
 
 export type AiModerationLabelPolicy = {
   risk_threshold: number;
-  model_min_risk: number;
   min_action: AiModerationAction;
   max_action: AiModerationAction;
 };

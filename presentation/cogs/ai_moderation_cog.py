@@ -151,7 +151,6 @@ class AiModerationCog(commands.Cog):
             recent_messages=recent_messages,
             recent_message_timestamps=recent_timestamps,
             metadata=metadata,
-            model_min_risk_by_label={label: rule.model_min_risk for label, rule in policy.labels.items()},
             event_type=event_type,
             user_context=user_context,
         )
