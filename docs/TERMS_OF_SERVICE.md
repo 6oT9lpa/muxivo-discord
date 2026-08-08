@@ -1,7 +1,7 @@
 # Terms of Service for Muxivo Discord
 
 **Effective Date:** June 18, 2026  
-**Last Updated:** July 23, 2026
+**Last Updated:** August 08, 2026
 
 These Terms of Service govern use of Muxivo Discord, including the Discord bot, slash commands, Muxivo DS Activity control panel, Creator Alerts, Dev Blog, logging, statistics, voice rooms, role tools, welcome tools, moderation commands, and AI moderation features.
 
@@ -198,6 +198,6 @@ These Terms may be updated when features, infrastructure, laws, or Discord requi
 
 ## 18. Contact
 
-Questions, complaints, data deletion requests, and security reports: **https://discord.gg/wUb3Js2wzt**.
+Questions, complaints, data deletion requests, and security reports: **https://discord.gg/6o9lpa-hub**.
 
 Include the server ID, user ID, and a short description of the issue where relevant.

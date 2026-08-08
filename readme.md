@@ -332,6 +332,37 @@ and `ELEVATED` additionally requires the explicit guild switches and beta
 acknowledgement for timeout, kick, and ban. A model label alone never bypasses
 these controls.
 
+### Request and enforcement lifecycle
+
+```mermaid
+sequenceDiagram
+    participant D as Discord
+    participant C as AiModerationCog
+    participant Q as AiModerationQueue
+    participant A as Muxivo Core API
+    participant P as Guild policy enforcer
+    participant R as Activity review/audit
+
+    D->>C: CREATE or UPDATE event
+    C->>C: Build bounded text, author and reply context
+    C->>Q: Queue one idempotent moderation request
+    Q->>A: /moderation/messages or /moderation/media
+    A-->>Q: Labels, evidence, risk and action proposal
+    Q-->>P: Moderation decision
+    P->>R: Persist audit/review lineage
+    alt SHADOW
+        P-->>D: No member action
+    else Policy permits action
+        P->>D: Discord warning, deletion, timeout, kick or ban
+        P->>A: Persist terminal action result
+    end
+```
+
+`SHADOW` never punishes a member. `LIMITED` allows only constrained actions,
+and `ELEVATED` additionally requires the explicit guild switches and beta
+acknowledgement for timeout, kick, and ban. A model label alone never bypasses
+these controls.
+
 Discord exposes `Member.joined_at` for the current membership, but not a reliable
 first-ever join timestamp before the bot began collecting it. Migration
 `0014_member_join_history` records the first and latest joins observed after it

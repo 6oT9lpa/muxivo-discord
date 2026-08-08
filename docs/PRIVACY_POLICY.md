@@ -1,7 +1,7 @@
 # Privacy Policy for Muxivo Discord
 
 **Effective Date:** June 18, 2026  
-**Last Updated:** July 23, 2026
+**Last Updated:** August 08, 2026
 
 This Privacy Policy explains what data Muxivo Discord processes, why it is processed, how it is stored, and how deletion or access requests can be made.
 
@@ -9,8 +9,8 @@ Muxivo Discord operates inside Discord servers and uses the Discord API. Use of 
 
 ## 1. Controller and Contact
 
-Bot operator: **6oT9lpa / Muxivo Discord project team**.
-Contact: **Discord Support Server: https://discord.gg/wUb3Js2wzt**.
+Bot operator: **6oT9lpa / Muxivo Dev**.
+Contact: **Discord Support Server: https://discord.gg/6o9lpa-hub**.
 
 Server administrators are also responsible for how Muxivo Discord is configured on their server: which modules are enabled, which channels receive logs, which roles can access Activity tabs, and who can view moderation or audit information.
 
@@ -246,6 +246,6 @@ This policy may be updated when features, infrastructure, laws, or Discord requi
 
 ## 11. Contact
 
-Privacy, deletion, and security questions: **https://discord.gg/wUb3Js2wzt**.
+Privacy, deletion, and security questions: **https://discord.gg/6o9lpa-hub**.
 
 Include the server ID and user ID where relevant.
