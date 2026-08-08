@@ -40,7 +40,15 @@ class ActivityAuthService:
             )
 
         if response.status_code >= 400:
-            logger.warning("Discord OAuth token exchange failed status=%s", response.status_code)
+            try:
+                error_code = str(response.json().get("error", "unknown"))
+            except (TypeError, ValueError):
+                error_code = "unknown"
+            logger.warning(
+                "Discord OAuth token exchange failed status=%s error=%s",
+                response.status_code,
+                error_code,
+            )
             raise HTTPException(status_code=401, detail="Discord authorization code was rejected")
 
         try:

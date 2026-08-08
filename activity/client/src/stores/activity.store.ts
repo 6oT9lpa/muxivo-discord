@@ -252,15 +252,23 @@ export const useActivityStore = defineStore("activity", {
       this.mode = "discord";
       const discordSdk = new DiscordSDK(clientId);
       this.discordSdk = discordSdk;
-      await discordSdk.ready();
+      await withTimeout(
+        discordSdk.ready(),
+        15_000,
+        "Discord Activity connection timed out. Close the Activity and launch it again from Discord.",
+      );
 
-      const { code } = await discordSdk.commands.authorize({
-        client_id: clientId,
-        response_type: "code",
-        state: "",
-        prompt: "none",
-        scope: ["identify", "guilds", "applications.commands"],
-      });
+      const { code } = await withTimeout(
+        discordSdk.commands.authorize({
+          client_id: clientId,
+          response_type: "code",
+          state: "",
+          prompt: "none",
+          scope: ["identify", "guilds", "applications.commands"],
+        }),
+        15_000,
+        "Discord authorization timed out. Close the Activity and launch it again from Discord.",
+      );
 
       const token = await exchangeDiscordCode(code);
       this.token = token.access_token;
@@ -298,6 +306,12 @@ export const useActivityStore = defineStore("activity", {
         this.aiModerator = await getAiModeratorSettings(discordSdk.guildId, token.access_token);
       }
       await this.refreshHealth(true);
+    },
+
+    async retryBoot() {
+      if (this.loading) return;
+      this.booted = false;
+      await this.boot();
     },
 
     toggleTheme() {
@@ -714,6 +728,16 @@ export const useActivityStore = defineStore("activity", {
 function isDiscordActivityLaunch() {
   const params = new URLSearchParams(window.location.search);
   return params.has("frame_id") || params.has("instance_id");
+}
+
+function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeout: number | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+  return Promise.race([operation, deadline]).finally(() => {
+    if (timeout !== undefined) window.clearTimeout(timeout);
+  });
 }
 
 function toPanelSession(session: ActivitySession): PanelSession {
