@@ -38,13 +38,13 @@ const actionRank: Record<AiModerationAction, number> = Object.fromEntries(
 ) as Record<AiModerationAction, number>;
 const labelDefinitions: LabelDefinition[] = [
   ...([
-    ["SPAM", 30, "LOG", "DELETE"], ["ADVERTISEMENT", 25, "LOG", "DELETE"], ["INVITE", 20, "LOG", "DELETE"],
-    ["SCAM", 55, "DELETE_WARN", "BAN"], ["TOXIC", 45, "LOG", "WARN"], ["PROFANITY", 25, "LOG", "WARN"],
-    ["POLITICS_IRL", 40, "REVIEW", "REVIEW"], ["HATE", 55, "WARN", "TIMEOUT"], ["THREAT", 65, "DELETE_WARN", "BAN"],
-    ["NSFW", 55, "DELETE", "TIMEOUT"], ["EVASION", 50, "WARN", "TIMEOUT"], ["FLOOD", 30, "LOG", "DELETE"],
-    ["URL", 45, "REVIEW", "DELETE"],
-  ] as Array<[string, number, AiModerationAction, AiModerationAction]>).map(([key, risk, min, max]) => ({
-    key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, min, max),
+    ["SPAM", 30, 50, "LOG", "DELETE"], ["ADVERTISEMENT", 25, 50, "LOG", "DELETE"], ["INVITE", 20, 50, "LOG", "DELETE"],
+    ["SCAM", 55, 60, "DELETE_WARN", "BAN"], ["TOXIC", 45, 50, "LOG", "WARN"], ["PROFANITY", 25, 50, "LOG", "WARN"],
+    ["POLITICS_IRL", 40, 50, "REVIEW", "REVIEW"], ["HATE", 55, 30, "WARN", "TIMEOUT"], ["THREAT", 65, 30, "DELETE_WARN", "BAN"],
+    ["NSFW", 55, 60, "DELETE", "TIMEOUT"], ["EVASION", 50, 50, "WARN", "TIMEOUT"], ["FLOOD", 30, 50, "LOG", "DELETE"],
+    ["URL", 45, 50, "REVIEW", "DELETE"],
+  ] as Array<[string, number, number, AiModerationAction, AiModerationAction]>).map(([key, risk, modelFloor, min, max]) => ({
+    key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, modelFloor, min, max),
   })),
 ];
 const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", "model", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
@@ -79,8 +79,8 @@ onBeforeUnmount(() => {
 });
 
 
-function policy(riskThreshold: number, minAction: AiModerationAction, maxAction: AiModerationAction): AiModerationLabelPolicy {
-  return { risk_threshold: riskThreshold, model_min_risk: 0, min_action: minAction, max_action: maxAction };
+function policy(riskThreshold: number, modelMinRisk: number, minAction: AiModerationAction, maxAction: AiModerationAction): AiModerationLabelPolicy {
+  return { risk_threshold: riskThreshold, model_min_risk: modelMinRisk, min_action: minAction, max_action: maxAction };
 }
 
 function emptyPolicy(): AiModerationPolicy {
@@ -122,7 +122,7 @@ function clonePolicy(source: AiModerationPolicy | undefined): AiModerationPolicy
     allowed_domains: [...source.allowed_domains],
     labels: Object.fromEntries(labelDefinitions.map((item) => {
       const sourceRule = source.labels[item.key];
-      return [item.key, { ...item.defaultPolicy, ...sourceRule, model_min_risk: sourceRule?.model_min_risk ?? 0 }];
+      return [item.key, { ...item.defaultPolicy, ...sourceRule, model_min_risk: sourceRule?.model_min_risk ?? item.defaultPolicy.model_min_risk }];
     })),
     blacklist_action: source.blacklist_action,
     unapproved_domain_action: source.unapproved_domain_action,

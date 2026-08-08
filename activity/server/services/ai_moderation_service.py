@@ -430,13 +430,25 @@ class AiModerationService:
             len(payload.policy.labels),
         )
         await self._access_service.ensure_module_access(access_token, str(payload.guild_id), "muxivo-core", "manage")
+        policy = self._with_model_sensitivity_overrides(payload.policy)
         await get_db().execute(
             "INSERT INTO ai_moderation_settings (guild_id, policy_json) VALUES (?, ?) ON CONFLICT(guild_id) DO UPDATE SET policy_json = excluded.policy_json, updated_at = CURRENT_TIMESTAMP",
-            (payload.guild_id, Jsonb(payload.policy.model_dump(mode="json"))),
+            (payload.guild_id, Jsonb(policy.model_dump(mode="json"))),
         )
         await get_db().commit()
         logger.info("Saved AI moderation policy guild_id=%s", payload.guild_id)
         return await self.get_settings(payload.guild_id, access_token)
+
+    @staticmethod
+    def _with_model_sensitivity_overrides(policy: AiModerationGuildPolicy) -> AiModerationGuildPolicy:
+        """Persist only intentional per-label departures from calibrated defaults."""
+        defaults = default_ai_moderation_policy()
+        overrides = {
+            label: rule.model_min_risk
+            for label, rule in policy.labels.items()
+            if label in defaults.labels and rule.model_min_risk != defaults.labels[label].model_min_risk
+        }
+        return policy.model_copy(update={"model_min_risk": None, "model_min_risk_overrides": overrides})
 
     async def simulate(self, guild_id: int, message_text: str, access_token: str) -> dict[str, object]:
         """Return an inspectable decision while making no Discord or dataset mutation."""
