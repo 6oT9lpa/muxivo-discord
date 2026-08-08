@@ -18,7 +18,7 @@ const activity = useActivityStore();
     </RouterLink>
 
     <nav class="public-nav" :aria-label="$t('header.primary_navigation')">
-      <AnimatedNavLink to="/" :label="$t('header.we_are_omni')" />
+      <AnimatedNavLink to="/" :label="$t('header.we_are_muxivo')" />
       <AnimatedNavLink to="/about" :label="$t('header.get_to_know_us')" />
     </nav>
 

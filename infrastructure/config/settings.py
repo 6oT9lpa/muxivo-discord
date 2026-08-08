@@ -1,5 +1,5 @@
 from typing import Optional
-from pydantic import SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,8 +39,17 @@ class BotConfig(BaseSettings):
     twitch_client_secret: Optional[SecretStr] = None
     youtube_api_key: Optional[SecretStr] = None
 
-    muxivo_core_api_url: str = "http://127.0.0.1:8000"
-    muxivo_core_internal_api_key: Optional[SecretStr] = None
+    # The AI service was called AI Moderator before the Muxivo rebrand.  Keep
+    # the former environment variables as read-only compatibility aliases so a
+    # live deployment can be upgraded without silently disabling moderation.
+    muxivo_core_api_url: str = Field(
+        default="http://127.0.0.1:8000",
+        validation_alias=AliasChoices("MUXIVO_CORE_API_URL", "AI_MODERATOR_API_URL"),
+    )
+    muxivo_core_internal_api_key: Optional[SecretStr] = Field(
+        default=None,
+        validation_alias=AliasChoices("MUXIVO_CORE_INTERNAL_API_KEY", "AI_MODERATOR_INTERNAL_API_KEY"),
+    )
     muxivo_core_queue_size: int = 500
     muxivo_core_worker_count: int = 2
     muxivo_core_request_timeout_seconds: float = 12.0

@@ -1,6 +1,6 @@
 # Commercial License Terms
 
-Copyright (c) 2026 OmniDev Corp. All rights reserved.
+Copyright (c) 2026 Muxivo Corp. All rights reserved.
 
 These terms are a baseline commercial license template for paid Muxivo Discord
 customers. They apply only when the copyright holder grants a written
@@ -38,7 +38,7 @@ Unless the paid agreement expressly allows it, the customer may not:
 ## 4. Ownership
 
 All right, title, and interest in and to the original Software, including all
-associated intellectual property rights, remain vested exclusively in OmniDev
+associated intellectual property rights, remain vested exclusively in Muxivo
 Corp.
 
 Customer modifications created under a paid license may be owned by the customer

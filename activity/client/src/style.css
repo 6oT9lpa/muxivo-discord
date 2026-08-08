@@ -20,7 +20,7 @@ body,
 html,
 body,
 #app,
-.omni-app {
+.muxivo-app {
   min-height: 100vh;
 }
 
@@ -46,7 +46,7 @@ a {
   text-decoration: none;
 }
 
-.omni-app {
+.muxivo-app {
   --bg: #000000;
   --surface: #111111;
   --surface-2: #18181b;

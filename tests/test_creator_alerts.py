@@ -93,7 +93,7 @@ def test_creator_alert_preview_renders_extended_placeholders(creator_event):
 def test_creator_url_parser_handles_twitch_and_youtube_urls():
     assert CreatorUrlParser.twitch_login("https://www.twitch.tv/stepiks_") == "stepiks_"
     assert CreatorUrlParser.twitch_login("stepiks_") == "stepiks_"
-    assert CreatorUrlParser.youtube_channel_ref("https://www.youtube.com/@omni") == "@omni"
+    assert CreatorUrlParser.youtube_channel_ref("https://www.youtube.com/@muxivo") == "@muxivo"
     assert CreatorUrlParser.youtube_channel_ref("https://www.youtube.com/channel/UC123") == "UC123"
 
 
@@ -427,7 +427,7 @@ async def test_platform_clients_skip_network_when_credentials_are_missing():
     assert twitch.is_configured is False
     assert youtube.is_configured is False
     assert await twitch.fetch_latest_event("https://www.twitch.tv/stepiks_") is None
-    assert await youtube.fetch_latest_event("https://www.youtube.com/@omni") is None
+    assert await youtube.fetch_latest_event("https://www.youtube.com/@muxivo") is None
 
 
 def test_creator_alert_service_reports_platform_configuration():

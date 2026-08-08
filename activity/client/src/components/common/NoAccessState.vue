@@ -51,7 +51,7 @@ defineEmits<{
         <button v-if="actionLabel" class="primary-button" type="button" :disabled="busy" @click="$emit('action')">
           {{ busy ? $t("access.syncing") : actionLabel }}
         </button>
-        <RouterLink class="secondary-link" to="/">{{ $t("access.back_to_omni") }}</RouterLink>
+        <RouterLink class="secondary-link" to="/">{{ $t("access.back_to_muxivo") }}</RouterLink>
       </div>
     </div>
   </section>

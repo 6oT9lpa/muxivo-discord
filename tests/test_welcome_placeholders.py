@@ -10,7 +10,7 @@ class FakeWelcomeRepo:
 
 class FakeGuild:
     id = 100
-    name = "Omni"
+    name = "Muxivo"
     member_count = 42
 
     def get_channel(self, channel_id):
@@ -42,7 +42,7 @@ def test_welcome_text_normalizes_supported_placeholders():
 
     result = service.normalize_text(text, FakeMember(), FakeGuild())
 
-    assert "Hi Sancheus on Omni with 42 members at 30.06.2026 10:15" in result
+    assert "Hi Sancheus on Muxivo with 42 members at 30.06.2026 10:15" in result
     assert "<#123456789012345678>" in result
     assert "<@&123456789012345679>" in result
     assert "<@123456789012345680>" in result

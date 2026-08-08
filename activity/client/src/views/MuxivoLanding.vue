@@ -59,7 +59,7 @@ const aiCapabilities = computed(() => [
       />
     </RevealOnScroll>
 
-    <section class="feature-grid" :aria-label="$t('home.why_omni')">
+    <section class="feature-grid" :aria-label="$t('home.why_muxivo')">
       <RevealOnScroll
         v-for="feature in features"
         :key="feature.index"
