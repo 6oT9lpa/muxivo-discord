@@ -5122,6 +5122,102 @@ input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.46; }
   }
 }
 .review-workspace { display: grid; gap: 16px; }
+
+/* Muxivo Core uses its own workspace markup.  The previous class migration
+   left it without the layout rules used by the older AI panel, so every block
+   collapsed into a single, overly wide card. */
+.muxivo-core-module {
+  width: min(100%, 1280px);
+  margin-right: auto;
+  margin-left: auto;
+}
+
+.muxivo-core-module.module-intro,
+.muxivo-core-module.module-content-panel {
+  padding: clamp(22px, 3vw, 34px) !important;
+}
+
+.muxivo-core-tabs {
+  padding: 8px clamp(18px, 2.5vw, 28px) !important;
+}
+
+.muxivo-core-tabs .panel-tab-nav {
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0;
+}
+
+.muxivo-core-tabs .panel-tab-nav button {
+  min-height: 36px;
+  padding: 8px 11px;
+  border-radius: 8px;
+}
+
+.muxivo-core-tabs .panel-tab-nav button::after { right: 11px; bottom: 4px; left: 11px; }
+.muxivo-core-tabs .panel-tab-nav button.active { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+
+.muxivo-coreation-workspace {
+  display: grid;
+  gap: clamp(18px, 2vw, 26px);
+  width: 100%;
+}
+
+.muxivo-coreation-section-copy {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+.muxivo-coreation-section-copy > div { min-width: 0; }
+.muxivo-coreation-section-copy h3 { margin: 5px 0 7px; color: var(--text); font-size: clamp(1.1rem, 1.7vw, 1.35rem); }
+.muxivo-coreation-section-copy p { max-width: 720px; margin: 0; color: var(--muted); line-height: 1.55; }
+.muxivo-coreation-kicker { color: var(--accent-2); font-size: 0.69rem; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+
+.muxivo-coreation-log-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 7px;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 11px;
+  color: #d6ffeb;
+  font-size: 0.78rem;
+  font-weight: 700;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.32);
+  border-radius: 999px;
+}
+
+.muxivo-coreation-log-status.muted { color: var(--muted); background: var(--surface-2); border-color: var(--border); }
+.muxivo-coreation-workspace .form-actions { padding-top: 2px; }
+.muxivo-coreation-workspace .ai-token-input { padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; }
+.muxivo-coreation-workspace .ai-token-list { margin-top: -8px; }
+.muxivo-coreation-workspace .ai-empty-state { min-height: 58px; }
+.muxivo-coreation-workspace .ai-policy-summary { gap: 12px; }
+.muxivo-coreation-workspace .ai-policy-summary article { min-height: 96px; padding: 18px; }
+.muxivo-coreation-workspace .ai-policy-controls { gap: 14px; }
+.muxivo-coreation-workspace .ai-rule-list,
+.muxivo-coreation-workspace .ai-risk-list { gap: 12px; }
+.muxivo-coreation-workspace .ai-rule-card,
+.muxivo-coreation-workspace .ai-risk-card,
+.muxivo-coreation-workspace .ai-exclusion-picker { padding: 18px; }
+.muxivo-coreation-status { margin: 0; padding: 11px 13px; color: var(--success); background: color-mix(in srgb, var(--success) 8%, transparent); border: 1px solid color-mix(in srgb, var(--success) 28%, transparent); border-radius: 9px; font-size: 0.84rem; }
+
+@media (max-width: 760px) {
+  .muxivo-core-module.module-intro,
+  .muxivo-core-module.module-content-panel { padding: 20px !important; }
+  .muxivo-coreation-section-copy { flex-direction: column; padding-bottom: 16px; }
+  .muxivo-core-tabs { padding: 7px 12px !important; }
+  .muxivo-core-tabs .panel-tab-nav { justify-content: flex-start; }
+  .muxivo-coreation-workspace .ai-policy-summary,
+  .muxivo-coreation-workspace .ai-policy-controls,
+  .muxivo-coreation-workspace .ai-exclusion-switch-grid,
+  .muxivo-coreation-workspace .ai-rule-card,
+  .muxivo-coreation-workspace .ai-risk-card { grid-template-columns: 1fr; }
+}
 .review-intro { padding: clamp(22px, 2.6vw, 30px) !important; }
 .review-hero { display: flex; gap: 18px; align-items: center; justify-content: space-between; }
 .review-hero > div:first-child { min-width: 0; }

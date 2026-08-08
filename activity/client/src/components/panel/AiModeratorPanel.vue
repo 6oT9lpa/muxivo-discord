@@ -208,7 +208,7 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
 </script>
 
 <template>
-  <RevealOnScroll tag="section" class="panel-section module-intro">
+  <RevealOnScroll tag="section" class="panel-section module-intro muxivo-core-module">
     <div class="section-heading">
       <span>{{ $t("module.muxivo-core") }}</span>
       <h2>{{ $t("ai.heading") }}</h2>
@@ -217,11 +217,11 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
 
   </RevealOnScroll>
 
-  <RevealOnScroll tag="section" class="panel-section module-tabs-panel muxivo-core-tabs" :delay="35">
+  <RevealOnScroll tag="section" class="panel-section module-tabs-panel muxivo-core-tabs muxivo-core-module" :delay="35">
     <PanelTabNav v-model="activeTab" :tabs="tabs.map((tab) => ({ key: tab.key, label: $t(tab.labelKey) }))" :aria-label="$t('ai.settings')" />
   </RevealOnScroll>
 
-  <RevealOnScroll tag="section" class="panel-section module-content-panel" :delay="60">
+  <RevealOnScroll tag="section" class="panel-section module-content-panel muxivo-core-module" :delay="60">
     <div v-if="activeTab === 'channels'" class="muxivo-coreation-workspace">
       <div class="muxivo-coreation-section-copy">
         <div>
