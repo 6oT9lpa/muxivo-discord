@@ -169,3 +169,12 @@ def test_api_client_redacts_validation_error_values() -> None:
     assert AiModeratorApiClient._safe_error_summary(response) == (
         ("attachments.0.file_size", "less_than_equal"),
     )
+
+
+def test_api_client_keeps_core_safe_error_code_without_response_text() -> None:
+    response = httpx.Response(
+        500,
+        json={"code": "internal_error", "message": "Internal service error", "correlation_id": "secret"},
+    )
+
+    assert AiModeratorApiClient._safe_error_summary(response) == (("code", "internal_error"),)

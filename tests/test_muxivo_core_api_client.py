@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import asyncio
 import json
+import re
 
 import httpx
 
@@ -70,6 +71,34 @@ def test_muxivo_core_payload_does_not_include_removed_author_fields() -> None:
 
     assert "author_role_ids" not in payload
     assert "author_is_bot" not in payload
+
+
+def test_moderate_forwards_safe_correlation_id() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "dataset_event_id": 1, "risk_score": 0, "decision_action": "LOG",
+                "primary_label": "SAFE", "labels": ["SAFE"], "execution_plan": ["LOG"],
+            },
+        )
+
+    async def exercise() -> None:
+        client = AiModeratorApiClient("http://muxivo-core", "internal-key", 1)
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            await client.moderate(
+                AiModerationRequest(guild_id=1, channel_id=2, user_id=3, message_id=4, raw_text="", created_at=datetime.now(timezone.utc))
+            )
+        finally:
+            await client.close()
+
+    asyncio.run(exercise())
+    assert re.fullmatch(r"[0-9a-f-]{36}", requests[0].headers["x-correlation-id"])
 
 
 def test_media_policy_requests_forward_verified_scope_and_revision() -> None:

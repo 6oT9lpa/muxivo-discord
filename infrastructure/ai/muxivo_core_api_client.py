@@ -3,6 +3,7 @@ from __future__ import annotations
 import httpx
 from datetime import datetime, timezone
 from typing import Any
+from uuid import uuid4
 
 from application.dto.ai_moderation_decision import AiModerationDecision
 from application.dto.ai_moderation_request import AiModerationRequest
@@ -21,6 +22,7 @@ class AiModeratorApiClient:
     async def moderate(self, request: AiModerationRequest) -> AiModerationDecision:
         payload = self._moderation_payload(request)
         endpoint = "/moderation/media" if request.attachments else "/moderation/messages"
+        correlation_id = str(uuid4())
         request_payload = (
             {
                 "message": payload,
@@ -31,15 +33,16 @@ class AiModeratorApiClient:
         )
         response = await self._http_client().post(
             f"{self._base_url}{endpoint}",
-            headers={"X-Internal-Api-Key": self._api_key},
+            headers={"X-Internal-Api-Key": self._api_key, "X-Correlation-Id": correlation_id},
             json=request_payload,
         )
         if response.status_code >= 400:
             logger.warning(
-                "Muxivo Core request failed status=%s message_id=%s endpoint=%s validation=%s",
+                "Muxivo Core request failed status=%s message_id=%s endpoint=%s correlation_id=%s error=%s",
                 response.status_code,
                 request.message_id,
                 endpoint,
+                correlation_id,
                 self._safe_error_summary(response),
             )
         response.raise_for_status()
@@ -82,11 +85,17 @@ class AiModeratorApiClient:
 
     @staticmethod
     def _safe_error_summary(response: httpx.Response) -> tuple[tuple[str, str], ...]:
-        """Return only validation locations and error codes, never request content."""
+        """Return stable error metadata only; never include request or response text."""
         try:
-            detail = response.json().get("detail", ())
+            body = response.json()
         except (ValueError, AttributeError):
             return ()
+        if not isinstance(body, dict):
+            return ()
+        code = body.get("code")
+        if isinstance(code, str):
+            return (("code", code),)
+        detail = body.get("detail", ())
         if not isinstance(detail, list):
             return ()
         return tuple(
