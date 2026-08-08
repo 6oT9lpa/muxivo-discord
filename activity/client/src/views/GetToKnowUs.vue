@@ -31,7 +31,7 @@ const facts = computed(() => [
   { value: "24/7", label: t("about.fact.availability") },
 ]);
 
-const modules = computed(() => ["welcome", "role-panels", "creator-alerts", "dev-blog", "ai-moderator", "logs", "server-stats", "voice-rooms", "health"].map((key) => t(`module.${key}`)));
+const modules = computed(() => ["welcome", "role-panels", "creator-alerts", "dev-blog", "muxivo-core", "logs", "server-stats", "voice-rooms", "health"].map((key) => t(`module.${key}`)));
 
 const modulePanels = computed(() => [
   {

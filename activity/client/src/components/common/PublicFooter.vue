@@ -7,7 +7,7 @@ import { openExternalLink, shouldHandleExternalClick } from "../../utils/externa
 const currentYear = new Date().getFullYear();
 const activity = useActivityStore();
 const githubDocsBase =
-  "https://github.com/6oT9lpa/discord-ai-moderation-bot/blob/main/docs";
+  "https://github.com/6oT9lpa/discord-muxivo-coreation-bot/blob/main/docs";
 
 const legalLinks = [
   { key: "footer.privacy", href: `${githubDocsBase}/PRIVACY_POLICY.md` },
@@ -16,7 +16,7 @@ const legalLinks = [
 ];
 
 const knowledgeBaseUrl = `${githubDocsBase}/KNOWLEDGE_BASE.md`;
-const sourceUrl = "https://github.com/6oT9lpa/discord-ai-moderation-bot";
+const sourceUrl = "https://github.com/6oT9lpa/discord-muxivo-coreation-bot";
 
 const productLinks = [
   { key: "footer.welcome", href: `${knowledgeBaseUrl}#5-welcome-alerts` },
@@ -27,7 +27,7 @@ const productLinks = [
 const communityLinks = [
   { key: "footer.creator_alerts", href: `${knowledgeBaseUrl}#6-creator-alerts` },
   { key: "footer.dev_blog", href: `${knowledgeBaseUrl}#7-dev-blog` },
-  { key: "footer.ai_moderator", href: `${knowledgeBaseUrl}#12-ai-moderation` },
+  { key: "footer.muxivo_core", href: `${knowledgeBaseUrl}#12-muxivo-coreation` },
   { key: "footer.logging", href: `${knowledgeBaseUrl}#9-logs-and-audit` },
 ];
 const team = ["6oT9lpa", "Jimmy"];

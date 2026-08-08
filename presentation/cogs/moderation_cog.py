@@ -587,7 +587,7 @@ class ModerationCog(commands.Cog):
 
     @commands.slash_command(
         name="activity_role",
-        description="Set a Discord role used by Omnibot Activity access",
+        description="Set a Discord role used by Muxivo DS Activity access",
     )
     @commands.has_permissions(administrator=True)
     async def set_activity_role(

@@ -36,7 +36,7 @@ class AiModeratorApiClient:
         )
         if response.status_code >= 400:
             logger.warning(
-                "AI moderator request failed status=%s message_id=%s endpoint=%s",
+                "Muxivo Core request failed status=%s message_id=%s endpoint=%s",
                 response.status_code,
                 request.message_id,
                 endpoint,

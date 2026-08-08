@@ -379,7 +379,7 @@ class VoiceService(VoiceServiceInterface):
         except Exception as exc:
             if channel:
                 try:
-                    await channel.delete(reason="OmniBot voice room metadata creation failed")
+                    await channel.delete(reason="Muxivo Discord voice room metadata creation failed")
                     logger.warning("Rolled back orphan voice room after create failure: channel_id=%s", channel.id)
                 except Exception as rollback_exc:
                     logger.error(
@@ -523,7 +523,7 @@ class VoiceService(VoiceServiceInterface):
         embed.add_field(name="Комната", value=channel.mention, inline=True)
         embed.add_field(name="Пригласил", value=inviter.mention, inline=True)
         embed.add_field(name="Доступ", value="Разрешение на вход уже выдано.", inline=False)
-        embed.set_footer(text="OmniBot Voice Rooms")
+        embed.set_footer(text="Muxivo Discord Voice Rooms")
 
         inviter_avatar_url = self._avatar_url(inviter)
         if inviter_avatar_url:

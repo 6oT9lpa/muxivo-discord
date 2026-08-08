@@ -16,7 +16,7 @@ from core.domain.ai_moderation_guild_policy import AiModerationGuildPolicy
 from application.dto.ai_moderation_request import AiModerationRequest
 from application.dto.ai_moderation_decision import AiModerationDecision
 from application.services.ai_moderation_policy_enforcer import AiModerationPolicyEnforcer
-from infrastructure.ai.ai_moderator_api_client import AiModeratorApiClient
+from infrastructure.ai.muxivo_core_api_client import AiModeratorApiClient
 from infrastructure.config import get_config
 from infrastructure.logging import get_logger
 from psycopg.types.json import Jsonb
@@ -34,7 +34,7 @@ class AiModerationService:
 
     async def get_settings(self, guild_id: int, access_token: str) -> dict[str, Any]:
         logger.info("Loading AI moderation settings guild_id=%s", guild_id)
-        await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator")
+        await self._access_service.ensure_module_access(access_token, str(guild_id), "muxivo-core")
         channels = await get_db().fetch_all("SELECT channel_id FROM ai_moderation_channels WHERE guild_id = ? ORDER BY channel_id", (guild_id,))
         policy_row = await get_db().fetch_one("SELECT policy_json FROM ai_moderation_settings WHERE guild_id = ?", (guild_id,))
         log_row = await get_db().fetch_one("SELECT channel_id FROM server_channel_purposes WHERE guild_id = ? AND purpose = ?", (guild_id, "ai_moderation_log"))
@@ -58,7 +58,7 @@ class AiModerationService:
             payload.guild_id,
             len(payload.channel_ids),
         )
-        await self._access_service.ensure_module_access(access_token, str(payload.guild_id), "ai-moderator", "manage")
+        await self._access_service.ensure_module_access(access_token, str(payload.guild_id), "muxivo-core", "manage")
         requested_channel_ids = set(payload.channel_ids)
         channel_ids = await self._discord_service.filter_moderation_channel_ids(str(payload.guild_id), requested_channel_ids)
         dropped_channel_ids = sorted(requested_channel_ids - channel_ids)
@@ -76,18 +76,18 @@ class AiModerationService:
         return await self.get_settings(payload.guild_id, access_token)
 
     async def get_media_policy(self, guild_id: int, access_token: str) -> dict[str, Any]:
-        await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator")
+        await self._access_service.ensure_module_access(access_token, str(guild_id), "muxivo-core")
         client = self._media_policy_client()
         try:
             return await client.get_media_policy(guild_id)
         except httpx.HTTPError as exc:
-            raise HTTPException(status_code=503, detail="AI Moderator media policy is unavailable") from exc
+            raise HTTPException(status_code=503, detail="Muxivo Core media policy is unavailable") from exc
         finally:
             await client.close()
 
     async def save_media_policy(self, payload: MediaPolicyPayload, access_token: str) -> dict[str, Any]:
         await self._access_service.ensure_module_access(
-            access_token, str(payload.guild_id), "ai-moderator", "manage"
+            access_token, str(payload.guild_id), "muxivo-core", "manage"
         )
         context = await self._access_service.fetch_user_context(access_token, str(payload.guild_id))
         actor_id = int(context["user"]["id"])
@@ -101,9 +101,9 @@ class AiModerationService:
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 409:
                 raise HTTPException(status_code=409, detail="Media policy changed; reload before saving") from exc
-            raise HTTPException(status_code=502, detail="AI Moderator rejected media policy") from exc
+            raise HTTPException(status_code=502, detail="Muxivo Core rejected media policy") from exc
         except httpx.RequestError as exc:
-            raise HTTPException(status_code=503, detail="AI Moderator media policy is unavailable") from exc
+            raise HTTPException(status_code=503, detail="Muxivo Core media policy is unavailable") from exc
         finally:
             await client.close()
         if verified.get("source") != "DATABASE" or int(verified.get("revision", 0)) <= payload.expected_revision:
@@ -111,7 +111,7 @@ class AiModerationService:
         return verified
 
     async def reset_media_policy(self, guild_id: int, expected_revision: int, access_token: str) -> dict[str, Any]:
-        await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator", "manage")
+        await self._access_service.ensure_module_access(access_token, str(guild_id), "muxivo-core", "manage")
         context = await self._access_service.fetch_user_context(access_token, str(guild_id))
         actor_id = int(context["user"]["id"])
         client = self._media_policy_client()
@@ -123,9 +123,9 @@ class AiModerationService:
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code == 409:
                 raise HTTPException(status_code=409, detail="Media policy changed; reload before reset") from exc
-            raise HTTPException(status_code=502, detail="AI Moderator rejected media policy reset") from exc
+            raise HTTPException(status_code=502, detail="Muxivo Core rejected media policy reset") from exc
         except httpx.RequestError as exc:
-            raise HTTPException(status_code=503, detail="AI Moderator media policy is unavailable") from exc
+            raise HTTPException(status_code=503, detail="Muxivo Core media policy is unavailable") from exc
         finally:
             await client.close()
         if verified.get("source") != "YAML_DEFAULT":
@@ -135,17 +135,17 @@ class AiModerationService:
     @staticmethod
     def _media_policy_client() -> AiModeratorApiClient:
         config = get_config()
-        if config.ai_moderator_internal_api_key is None:
-            raise HTTPException(status_code=503, detail="AI Moderator is not configured")
+        if config.muxivo_core_internal_api_key is None:
+            raise HTTPException(status_code=503, detail="Muxivo Core is not configured")
         return AiModeratorApiClient(
-            config.ai_moderator_api_url,
-            config.ai_moderator_internal_api_key.get_secret_value(),
-            config.ai_moderator_request_timeout_seconds,
+            config.muxivo_core_api_url,
+            config.muxivo_core_internal_api_key.get_secret_value(),
+            config.muxivo_core_request_timeout_seconds,
         )
 
     async def get_metrics(self, guild_id: int, access_token: str) -> dict[str, object]:
         """Return privacy-gated aggregate quality metrics, never message content."""
-        await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator")
+        await self._access_service.ensure_module_access(access_token, str(guild_id), "muxivo-core")
         if not await self._metrics_enabled(guild_id):
             from fastapi import HTTPException
             raise HTTPException(status_code=403, detail="AI moderation metrics require DM trust from the owner or trusted ADMIN")
@@ -208,7 +208,7 @@ class AiModerationService:
         return trusted_role is not None
 
     async def _ensure_review_access(self, guild_id: int, access_token: str) -> int:
-        await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator")
+        await self._access_service.ensure_module_access(access_token, str(guild_id), "muxivo-core")
         context = await self._access_service.fetch_user_context(access_token, str(guild_id))
         user_id = int(context["user"]["id"])
         if not await self.can_access_review_queue(guild_id, access_token):
@@ -340,9 +340,9 @@ class AiModerationService:
         actor_id: int,
     ) -> None:
         config = get_config()
-        api_key = config.ai_moderator_internal_api_key
+        api_key = config.muxivo_core_internal_api_key
         if api_key is None:
-            raise HTTPException(status_code=503, detail="AI Moderator feedback is not configured")
+            raise HTTPException(status_code=503, detail="Muxivo Core feedback is not configured")
         labels = tuple(str(label) for label in (current.get("labels_json") or ()))
         original_action = str(current["action"])
         feedback_type = "confirmed" if payload.action.value == original_action else "corrected"
@@ -353,9 +353,9 @@ class AiModerationService:
             hashlib.sha256,
         ).hexdigest()
         client = AiModeratorApiClient(
-            config.ai_moderator_api_url,
+            config.muxivo_core_api_url,
             api_key.get_secret_value(),
-            config.ai_moderator_request_timeout_seconds,
+            config.muxivo_core_request_timeout_seconds,
         )
         try:
             await client.submit_feedback(
@@ -372,19 +372,19 @@ class AiModerationService:
             )
         except httpx.HTTPStatusError as exc:
             logger.warning(
-                "AI Moderator rejected feedback guild_id=%s item_id=%s status=%s",
+                "Muxivo Core rejected feedback guild_id=%s item_id=%s status=%s",
                 payload.guild_id,
                 item_id,
                 exc.response.status_code,
             )
-            raise HTTPException(status_code=502, detail="AI Moderator rejected the review feedback") from exc
+            raise HTTPException(status_code=502, detail="Muxivo Core rejected the review feedback") from exc
         except httpx.RequestError as exc:
             logger.warning(
-                "AI Moderator feedback unavailable guild_id=%s item_id=%s",
+                "Muxivo Core feedback unavailable guild_id=%s item_id=%s",
                 payload.guild_id,
                 item_id,
             )
-            raise HTTPException(status_code=503, detail="AI Moderator feedback is unavailable") from exc
+            raise HTTPException(status_code=503, detail="Muxivo Core feedback is unavailable") from exc
         finally:
             await client.close()
 
@@ -416,7 +416,7 @@ class AiModerationService:
             len(payload.policy.allowed_domains),
             len(payload.policy.labels),
         )
-        await self._access_service.ensure_module_access(access_token, str(payload.guild_id), "ai-moderator", "manage")
+        await self._access_service.ensure_module_access(access_token, str(payload.guild_id), "muxivo-core", "manage")
         await get_db().execute(
             "INSERT INTO ai_moderation_settings (guild_id, policy_json) VALUES (?, ?) ON CONFLICT(guild_id) DO UPDATE SET policy_json = excluded.policy_json, updated_at = CURRENT_TIMESTAMP",
             (payload.guild_id, Jsonb(payload.policy.model_dump(mode="json"))),
@@ -427,12 +427,12 @@ class AiModerationService:
 
     async def simulate(self, guild_id: int, message_text: str, access_token: str) -> dict[str, object]:
         """Return an inspectable decision while making no Discord or dataset mutation."""
-        user, _ = await self._access_service.ensure_module_access(access_token, str(guild_id), "ai-moderator", "manage")
+        user, _ = await self._access_service.ensure_module_access(access_token, str(guild_id), "muxivo-core", "manage")
         policy = await self._load_policy(guild_id)
         if not policy.test_mode:
-            raise HTTPException(status_code=409, detail="Enable AI moderator test mode before running a simulation")
+            raise HTTPException(status_code=409, detail="Enable Muxivo Core test mode before running a simulation")
         config = get_config()
-        api_key = config.ai_moderator_internal_api_key
+        api_key = config.muxivo_core_internal_api_key
         if api_key is None:
             logger.error("AI simulation unavailable because internal key is not configured")
             raise HTTPException(status_code=503, detail="AI simulation is not configured")
@@ -441,7 +441,7 @@ class AiModerationService:
             raw_text=message_text, created_at=datetime.now(timezone.utc), metadata={"simulation": True, "requested_by": str(user["id"])},
         )
         raw = await AiModeratorApiClient(
-            config.ai_moderator_api_url, api_key.get_secret_value(), config.ai_moderator_request_timeout_seconds,
+            config.muxivo_core_api_url, api_key.get_secret_value(), config.muxivo_core_request_timeout_seconds,
         ).simulate(request)
         model_decision = AiModerationDecision(
             event_id=1, user_id=request.user_id, guild_id=guild_id, message_id=request.message_id,

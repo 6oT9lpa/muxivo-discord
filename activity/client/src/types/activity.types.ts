@@ -10,7 +10,7 @@ export type ModuleKey =
   | "role-panels"
   | "creator-alerts"
   | "dev-blog"
-  | "ai-moderator"
+  | "muxivo-core"
   | "ai-review"
   | "logs"
   | "server-stats"

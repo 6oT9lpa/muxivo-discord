@@ -136,7 +136,7 @@ class YouTubeClient(CreatorPlatformClientInterface):
                 url,
                 proxy=self._proxy_url,
                 timeout=aiohttp.ClientTimeout(total=15),
-                headers={"User-Agent": "Mozilla/5.0 OmniBot/1.0"},
+                headers={"User-Agent": "Mozilla/5.0 Muxivo Discord/1.0"},
             ) as response:
                 if response.status >= 400:
                     logger.warning("YouTube live page request failed status=%s url=%s", response.status, url)

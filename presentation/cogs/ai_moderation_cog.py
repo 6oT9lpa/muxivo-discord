@@ -28,6 +28,12 @@ logger = get_logger(__name__)
 
 class AiModerationCog(commands.Cog):
     """Connect Discord messages, moderation decisions and audit logging."""
+    _HIGH_IMPACT_ACTIONS = frozenset({"TIMEOUT", "KICK", "BAN"})
+    _ACTION_PERMISSION = {
+        "TIMEOUT": "moderate_members",
+        "KICK": "kick_members",
+        "BAN": "ban_members",
+    }
     _SUPPORTED_IMAGE_CONTENT_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
 
     def __init__(self, bot: commands.Bot, settings_service: AiModerationSettingsService, channel_service: ChannelService, queue: AiModerationQueue, context_builder: UserModerationContextBuilder, punishment_repository: PunishmentRepositoryInterface, ai_repository: AiModerationRepositoryInterface | None = None) -> None:
@@ -234,6 +240,7 @@ class AiModerationCog(commands.Cog):
         member = guild.get_member(request.user_id)
         channel = guild.get_channel(request.channel_id)
         message = channel.get_partial_message(request.message_id) if isinstance(channel, (disnake.TextChannel, disnake.NewsChannel)) else None
+        decision = self._limit_to_executable_member_action(guild, member, decision)
         if self._is_flood_timeout(decision) and not decision.dry_run:
             is_primary_flood_incident = self._flood_coordinator.begin_or_join(
                 request.guild_id,
@@ -248,7 +255,41 @@ class AiModerationCog(commands.Cog):
         status = "SUCCESS"
         try:
             for action in decision.execution_plan:
-                await self._execute_action(guild, member, message, action, decision.dry_run, decision, request)
+                try:
+                    await self._execute_action(
+                        guild,
+                        member,
+                        message,
+                        action,
+                        decision.dry_run,
+                        decision,
+                        request,
+                    )
+                except disnake.Forbidden:
+                    if decision.dry_run or action not in self._HIGH_IMPACT_ACTIONS:
+                        raise
+                    if self._is_flood_timeout(decision):
+                        self._flood_coordinator.abort(request.guild_id, request.user_id)
+                    logger.warning(
+                        "Discord rejected AI moderation member action; falling back to warning "
+                        "guild_id=%s user_id=%s message_id=%s action=%s",
+                        request.guild_id,
+                        request.user_id,
+                        request.message_id,
+                        action,
+                    )
+                    decision = self._warning_fallback(decision)
+                    await self._execute_action(
+                        guild,
+                        member,
+                        message,
+                        "WARN",
+                        False,
+                        decision,
+                        request,
+                    )
+                    await self._record_ai_punishment(request, "WARN", False)
+                    break
                 await self._record_ai_punishment(request, action, decision.dry_run)
             # The AI API tracks a single decision, while Discord enforcement
             # may need multiple technical steps (for example DELETE → TIMEOUT).
@@ -308,6 +349,86 @@ class AiModerationCog(commands.Cog):
     @staticmethod
     def _is_flood_timeout(decision: AiModerationDecision) -> bool:
         return decision.action == "TIMEOUT" and "FLOOD" in {label.upper() for label in decision.labels}
+
+    def _limit_to_executable_member_action(
+        self,
+        guild: disnake.Guild,
+        member: disnake.Member | None,
+        decision: AiModerationDecision,
+    ) -> AiModerationDecision:
+        """Downgrade an unavailable member restriction without hiding its proposal."""
+        if (
+            decision.dry_run
+            or decision.action not in self._HIGH_IMPACT_ACTIONS
+            or self._can_execute_member_action(guild, member, decision.action)
+        ):
+            return decision
+        logger.info(
+            "AI moderation member action is unavailable; using delete and warning "
+            "guild_id=%s user_id=%s message_id=%s action=%s",
+            decision.guild_id,
+            decision.user_id,
+            decision.message_id,
+            decision.action,
+        )
+        return self._warning_fallback(decision)
+
+    def _can_execute_member_action(
+        self,
+        guild: disnake.Guild,
+        member: disnake.Member | None,
+        action: str,
+    ) -> bool:
+        if member is None or action not in self._HIGH_IMPACT_ACTIONS:
+            return False
+        if member.id == getattr(guild, "owner_id", None):
+            return False
+
+        bot_member = getattr(guild, "me", None)
+        if bot_member is None or member.id == getattr(bot_member, "id", None):
+            return False
+        bot_top_role = getattr(bot_member, "top_role", None)
+        member_top_role = getattr(member, "top_role", None)
+        bot_top_position = getattr(bot_top_role, "position", None)
+        member_top_position = getattr(member_top_role, "position", None)
+        if (
+            bot_top_position is None
+            or member_top_position is None
+            or member_top_position >= bot_top_position
+        ):
+            return False
+
+        permissions = getattr(bot_member, "guild_permissions", None)
+        permission_name = self._ACTION_PERMISSION[action]
+        if permissions is None or not getattr(permissions, permission_name, False):
+            return False
+
+        if action == "TIMEOUT" and getattr(
+            getattr(member, "guild_permissions", None),
+            "administrator",
+            False,
+        ):
+            administrator_roles = tuple(
+                role
+                for role in getattr(member, "roles", ())
+                if not role.is_default() and role.permissions.administrator
+            )
+            if not administrator_roles or any(
+                role.managed or role.position >= bot_top_position
+                for role in administrator_roles
+            ):
+                return False
+        return True
+
+    @staticmethod
+    def _warning_fallback(decision: AiModerationDecision) -> AiModerationDecision:
+        return decision.model_copy(
+            update={
+                "action": "DELETE_WARN",
+                "proposed_action": decision.proposed_action or decision.action,
+                "execution_plan": ("DELETE", "WARN"),
+            }
+        )
 
     async def _coalesce_flood_message(
         self,
@@ -454,6 +575,7 @@ class AiModerationCog(commands.Cog):
         if dry_run:
             return
         punishment_type = {
+            "WARN": PunishmentType.WARN,
             "TIMEOUT": PunishmentType.TIMEOUT,
             "KICK": PunishmentType.KICK,
             "BAN": PunishmentType.BAN,
@@ -467,7 +589,7 @@ class AiModerationCog(commands.Cog):
             "AI moderation policy",
             guild_id=request.guild_id,
             message_id=request.message_id,
-            source="AI_MODERATOR",
+            source="MUXIVO_CORE",
         )
 
     async def _send_log(self, guild: disnake.Guild, request: AiModerationRequest, decision: AiModerationDecision, status: str) -> None:
@@ -481,7 +603,7 @@ class AiModerationCog(commands.Cog):
         execution_context = "Test mode — no Discord actions executed" if decision.dry_run else "Decision recorded"
         reply_text = request.metadata.get("reply_context_text")
         reply_author_id = request.metadata.get("reply_context_author_id")
-        # Match the compact visual hierarchy used by the rest of OmniBot's
+        # Match the compact visual hierarchy used by the rest of Muxivo Discord's
         # activity logs: the first row answers who/what/how severe, with only
         # the extra context that a moderator needs beneath it.
         builder = (
@@ -626,12 +748,6 @@ class AiModerationCog(commands.Cog):
         return tuple(recent), tuple(timestamps)
 
     async def _reply_context(self, message: disnake.Message) -> dict[str, object]:
-        """Return reply context as API-safe scalar metadata.
-
-        The AI API deliberately accepts only scalar metadata values. A nested
-        ``reply_context`` object caused reply messages to be rejected with 422,
-        so the Discord edge adapter flattens the same information here.
-        """
         if message.reference is None or message.reference.message_id is None:
             return {}
         try:

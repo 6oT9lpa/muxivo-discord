@@ -30,14 +30,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libmagic1 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN groupadd --system omnibot && useradd --system --gid omnibot --create-home omnibot
+RUN groupadd --system muxivo-discord && useradd --system --gid muxivo-discord --create-home muxivo-discord
 
 COPY --from=builder /opt/venv /opt/venv
 
-COPY --chown=omnibot:omnibot . .
+COPY --chown=muxivo-discord:muxivo-discord . .
 
-RUN mkdir -p /app/data /app/logs && chown -R omnibot:omnibot /app/data /app/logs
+RUN mkdir -p /app/data /app/logs && chown -R muxivo-discord:muxivo-discord /app/data /app/logs
 
-USER omnibot
+USER muxivo-discord
 
 CMD ["python", "main.py"]

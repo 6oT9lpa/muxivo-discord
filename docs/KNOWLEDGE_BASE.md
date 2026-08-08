@@ -1,16 +1,16 @@
-# OmniBot Knowledge Base
+# Muxivo Discord Knowledge Base
 
-**Last Updated:** July 10, 2026
+**Last Updated:** August 8, 2026
 
-This knowledge base explains the current OmniBot modules, how to configure them, and how to troubleshoot common problems.
+This knowledge base explains the current Muxivo Discord modules, how to configure them, and how to troubleshoot common problems.
 
-## 1. What OmniBot Does
+## 1. What Muxivo Discord Does
 
-OmniBot manages Discord server operations through slash commands and a Discord Activity control panel.
+Muxivo Discord manages Discord server operations through slash commands and a Muxivo DS Activity control panel.
 
 Current ready modules:
 
-- Discord Activity dashboard and RBAC;
+- Muxivo DS Activity dashboard and RBAC;
 - role synchronization, autoroles, and role panels;
 - welcome messages and member event logs;
 - channel and role purpose settings;
@@ -20,10 +20,10 @@ Current ready modules:
 - dynamic voice rooms;
 - Creator Alerts for Twitch, YouTube, and Kick;
 - Dev Blog drafts and Components V2 publishing;
-- AI moderation through the local AI Moderator API;
+- AI moderation through the local Muxivo Core API;
 - integrations and health surfaces.
 
-## 2. Discord Activity Panel
+## 2. Muxivo DS Activity Panel
 
 The Activity panel is the main admin workspace. It is intended to run inside Discord.
 
@@ -39,7 +39,7 @@ Current panels:
 - Logs;
 - Server Stats;
 - Voice Rooms;
-- AI Moderator;
+- Muxivo Core;
 - Integrations;
 - Health Status.
 
@@ -265,7 +265,7 @@ Moderation actions are logged and stored for history review. The bot does not de
 
 ## 9. Logs and Audit
 
-OmniBot can log:
+Muxivo Discord can log:
 
 - message events;
 - deleted and edited messages;
@@ -322,30 +322,34 @@ Useful commands:
 
 ## 12. AI Moderation
 
-AI Moderation is available through the Activity panel and the local AI Moderator API.
+AI Moderation is available through the Activity panel and the local Muxivo Core API.
 
 Current behavior:
 
 - admins choose which Discord text/news channels are covered;
 - channel IDs are validated and non-message channels are ignored;
-- messages from covered channels are sent to the local AI Moderator endpoint;
+- messages from covered channels are sent to the local Muxivo Core endpoint;
 - the AI service returns labels, risk score, explanation, and recommended action;
 - server policy controls thresholds, blacklist words, allowed domains, and maximum action levels;
-- Activity Health shows whether the AI Moderator API is reachable;
-- local ruBERT can run on CUDA when NVIDIA drivers and CUDA-ready PyTorch are available.
+- Activity Health shows whether the Muxivo Core API is reachable;
+- the 30 July 2026 Muxivo Core release uses a separately deployed calibrated
+  ruBERT Tiny2 model bundle; Muxivo Discord never stores model weights or downloads
+  image bytes;
+- `SHADOW` logs a proposal only, while stronger Discord actions remain subject
+  to the guild's enforcement mode, permissions, and action limits.
 
 Recommended setup:
 
 ```text
-1. Start ai-moder on the server.
-2. Configure AI_MODERATOR_API_URL and AI_MODERATOR_API_KEY in OmniBot .env.
-3. Open Activity -> AI Moderator.
+1. Start muxivo-core on the server.
+2. Configure MUXIVO_CORE_API_URL and MUXIVO_CORE_INTERNAL_API_KEY in Muxivo Discord .env.
+3. Open Activity -> Muxivo Core.
 4. Select moderated channels.
 5. Review blacklist words, allowed domains, label thresholds, and action limits.
 6. Check Activity -> Health Status.
 ```
 
-The AI Moderator should assist staff, not replace human review. Use stricter automatic actions only after testing on your server.
+The Muxivo Core should assist staff, not replace human review. Use stricter automatic actions only after testing on your server.
 
 ## 13. Common Issues
 

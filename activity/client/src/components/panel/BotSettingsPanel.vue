@@ -7,12 +7,12 @@ import { useActivityStore } from "../../stores/activity.store";
 import type { ActivityRolePurpose, AiModerationPolicy, ChannelPurpose } from "../../types/activity.types";
 import { t } from "../../i18n";
 
-type BotSettingsTab = "general" | "channels" | "roles" | "ai_moderator";
+type BotSettingsTab = "general" | "channels" | "roles" | "muxivo_core";
 
 const activity = useActivityStore();
 const activeTab = ref<BotSettingsTab>("general");
 const status = ref("");
-const tabs = computed<Array<{ key: BotSettingsTab; label: string }>>(() => ["general", "channels", "roles", "ai_moderator"].map((key) => ({ key: key as BotSettingsTab, label: t(`settings.${key}`) })));
+const tabs = computed<Array<{ key: BotSettingsTab; label: string }>>(() => ["general", "channels", "roles", "muxivo_core"].map((key) => ({ key: key as BotSettingsTab, label: t(`settings.${key}`) })));
 const channelPurposeKeys: ChannelPurpose[] = ["welcome", "member_log", "mod_log", "message_log", "channel_log", "stream_announce", "dev_blog", "ai_moderation_log"];
 const channelPurposes = computed(() => channelPurposeKeys.map((key) => ({ key, label: t(`settings.channel.${key}`) })));
 const rolePurposeKeys: ActivityRolePurpose[] = ["activity_admin", "activity_streamer", "activity_developer", "ping_stream", "ping_dev"];
@@ -42,16 +42,16 @@ watch(() => activity.aiModerator?.policy, (policy) => {
   });
 }, { immediate: true });
 
-// Bot Settings owns the beta controls but the policy endpoint belongs to AI Moderator.
-onMounted(() => { void activity.loadModuleData("ai-moderator"); });
+// Bot Settings owns the beta controls but the policy endpoint belongs to Muxivo Core.
+onMounted(() => { void activity.loadModuleData("muxivo-core"); });
 
 async function saveChannel(purpose: ChannelPurpose, value: string) { if (!value) return; try { await activity.saveChannelPurposeValue(purpose, value); status.value = t("settings.channel_saved"); } catch { status.value = t("settings.channel_failed"); } }
 async function saveRole(purpose: ActivityRolePurpose, value: string) { if (!value) return; try { await activity.saveActivityRolePurpose(purpose, value); status.value = t("settings.role_saved"); } catch { status.value = t("settings.role_failed"); } }
 async function toggleWelcome(value: boolean) { try { await activity.saveWelcome({ ...activity.welcome, is_enabled: value }); status.value = t("settings.welcome_saved"); } catch { status.value = t("settings.welcome_failed"); } }
 async function saveEnforcement() {
-  if (!activity.aiModerator) { status.value = t("settings.ai_moderator_unavailable"); return; }
-  try { await activity.saveAiModeratorPolicyValue({ ...activity.aiModerator.policy, ...enforcement }); status.value = t("settings.ai_moderator_saved"); }
-  catch { status.value = t("settings.ai_moderator_failed"); }
+  if (!activity.aiModerator) { status.value = t("settings.muxivo_core_unavailable"); return; }
+  try { await activity.saveAiModeratorPolicyValue({ ...activity.aiModerator.policy, ...enforcement }); status.value = t("settings.muxivo_core_saved"); }
+  catch { status.value = t("settings.muxivo_core_failed"); }
 }
 </script>
 
@@ -68,11 +68,11 @@ async function saveEnforcement() {
     <div v-else-if="activeTab === 'roles'" class="settings-roles-workspace"><header class="module-content-header"><div><h3>{{ $t("settings.roles") }}</h3><p>{{ $t("settings.roles_sync_description") }}</p></div><button class="ghost-button" type="button" :disabled="activity.moduleLoading" @click="activity.syncRolesFromDiscord"><RefreshCcw :size="16" /> {{ $t("settings.sync_roles") }}</button></header><div class="settings-list"><article v-for="purpose in rolePurposes" :key="purpose.key"><strong>{{ purpose.label }}</strong><select v-model="activity.activityRoles[purpose.key]" @change="saveRole(purpose.key, activity.activityRoles[purpose.key] || '')"><option value="">{{ $t("settings.select_role") }}</option><option v-for="role in activity.roles" :key="role.id" :value="role.id">{{ role.name }}</option></select></article><article v-if="activity.roles.length === 0"><strong>{{ $t("settings.no_roles") }}</strong><span>{{ $t("settings.no_roles_text") }}</span></article></div></div>
     <div v-else class="ai-beta-workspace">
       <div class="ai-beta-warning" role="alert"><ShieldAlert :size="28" /><div><span>{{ $t("settings.ai_beta_eyebrow") }}</span><h3>{{ $t("settings.ai_beta_warning_title") }}</h3><p>{{ $t("settings.ai_beta_warning_text") }}</p></div></div>
-      <section class="ai-beta-card"><header><div><span class="ai-moderation-kicker">{{ $t("settings.ai_beta_controls") }}</span><h3>{{ $t("settings.ai_beta_heading") }}</h3><p>{{ $t("settings.ai_beta_help") }}</p></div></header><div class="ai-beta-fields"><label><span>{{ $t("settings.ai_mode") }}</span><select v-model="enforcement.enforcement_mode"><option value="SHADOW">{{ $t("settings.ai_mode_shadow") }}</option><option value="LIMITED">{{ $t("settings.ai_mode_limited") }}</option><option value="ELEVATED">{{ $t("settings.ai_mode_elevated") }}</option></select></label><label><span>{{ $t("settings.ai_confidence") }}</span><input v-model.number="enforcement.limited_min_confidence" type="number" min="0.8" max="1" step="0.01" /></label></div></section>
-      <section class="ai-beta-card"><header><div><span class="ai-moderation-kicker">{{ $t("settings.ai_beta_permissions") }}</span><h3>{{ $t("settings.ai_beta_permissions_title") }}</h3><p>{{ $t("settings.ai_beta_permissions_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>{{ $t("settings.ai_acknowledge") }}</strong><small>{{ $t("settings.ai_acknowledge_help") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.beta_enforcement_acknowledged }" role="switch" :aria-checked="enforcement.beta_enforcement_acknowledged" @click="enforcement.beta_enforcement_acknowledged = !enforcement.beta_enforcement_acknowledged"><i /></button></label><label v-for="item in [['allow_automated_timeout', 'settings.ai_timeout'], ['allow_automated_kick', 'settings.ai_kick'], ['allow_automated_ban', 'settings.ai_ban']] as const" :key="item[0]" class="ai-beta-toggle" :class="{ disabled: !elevatedEnabled }"><span><strong>{{ $t(item[1]) }}</strong><small>{{ $t('settings.ai_requires_elevated') }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement[item[0]] }" role="switch" :aria-checked="enforcement[item[0]]" :disabled="!elevatedEnabled" @click="enforcement[item[0]] = !enforcement[item[0]]"><i /></button></label></div></section>
-        <section class="ai-beta-card"><header><div><span class="ai-moderation-kicker">{{ $t("settings.ai_test_mode") }}</span><h3>{{ $t("settings.ai_test_heading") }}</h3><p>{{ $t("settings.ai_test_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>{{ $t("settings.ai_test_toggle") }}</strong><small>{{ $t("settings.ai_test_toggle_help") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.test_mode }" role="switch" :aria-checked="enforcement.test_mode" @click="enforcement.test_mode = !enforcement.test_mode"><i /></button></label></div></section>
+      <section class="ai-beta-card"><header><div><span class="muxivo-coreation-kicker">{{ $t("settings.ai_beta_controls") }}</span><h3>{{ $t("settings.ai_beta_heading") }}</h3><p>{{ $t("settings.ai_beta_help") }}</p></div></header><div class="ai-beta-fields"><label><span>{{ $t("settings.ai_mode") }}</span><select v-model="enforcement.enforcement_mode"><option value="SHADOW">{{ $t("settings.ai_mode_shadow") }}</option><option value="LIMITED">{{ $t("settings.ai_mode_limited") }}</option><option value="ELEVATED">{{ $t("settings.ai_mode_elevated") }}</option></select></label><label><span>{{ $t("settings.ai_confidence") }}</span><input v-model.number="enforcement.limited_min_confidence" type="number" min="0.8" max="1" step="0.01" /></label></div></section>
+      <section class="ai-beta-card"><header><div><span class="muxivo-coreation-kicker">{{ $t("settings.ai_beta_permissions") }}</span><h3>{{ $t("settings.ai_beta_permissions_title") }}</h3><p>{{ $t("settings.ai_beta_permissions_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>{{ $t("settings.ai_acknowledge") }}</strong><small>{{ $t("settings.ai_acknowledge_help") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.beta_enforcement_acknowledged }" role="switch" :aria-checked="enforcement.beta_enforcement_acknowledged" @click="enforcement.beta_enforcement_acknowledged = !enforcement.beta_enforcement_acknowledged"><i /></button></label><label v-for="item in [['allow_automated_timeout', 'settings.ai_timeout'], ['allow_automated_kick', 'settings.ai_kick'], ['allow_automated_ban', 'settings.ai_ban']] as const" :key="item[0]" class="ai-beta-toggle" :class="{ disabled: !elevatedEnabled }"><span><strong>{{ $t(item[1]) }}</strong><small>{{ $t('settings.ai_requires_elevated') }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement[item[0]] }" role="switch" :aria-checked="enforcement[item[0]]" :disabled="!elevatedEnabled" @click="enforcement[item[0]] = !enforcement[item[0]]"><i /></button></label></div></section>
+        <section class="ai-beta-card"><header><div><span class="muxivo-coreation-kicker">{{ $t("settings.ai_test_mode") }}</span><h3>{{ $t("settings.ai_test_heading") }}</h3><p>{{ $t("settings.ai_test_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>{{ $t("settings.ai_test_toggle") }}</strong><small>{{ $t("settings.ai_test_toggle_help") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.test_mode }" role="switch" :aria-checked="enforcement.test_mode" @click="enforcement.test_mode = !enforcement.test_mode"><i /></button></label></div></section>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="saveEnforcement">{{ $t("settings.ai_save") }}</button></div>
     </div>
-    <small v-if="status" class="ai-moderation-status" role="status">{{ status }}</small>
+    <small v-if="status" class="muxivo-coreation-status" role="status">{{ status }}</small>
   </RevealOnScroll>
 </template>

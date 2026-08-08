@@ -10,6 +10,7 @@ from application.services.global_application_command_sync_service import GlobalA
 from infrastructure.config import BotConfig
 from infrastructure.logging import get_logger
 from infrastructure.network import install_aiohttp_discord_proxy
+from core.product_identity import PRODUCT_NAME
 
 logger = get_logger(__name__)
 
@@ -224,11 +225,11 @@ class DiscordBot(commands.Bot):
 
     def _load_presence_items(self) -> list[PresenceItem]:
         return [
-            PresenceItem("watching", "щит OmniBot над {members} участниками", disnake.Status.online),
+            PresenceItem("watching", "щит Muxivo Discord над {members} участниками", disnake.Status.online),
             PresenceItem("listening", "/help | роли, логи, войсы", disnake.Status.idle),
             PresenceItem("competing", "с хаосом в логах и побеждаю", disnake.Status.dnd),
             PresenceItem("watching", "пульс сервера: роли, входы, события", disnake.Status.online),
-            PresenceItem("playing", "Omnibot OS | порядок без шума", disnake.Status.online),
+            PresenceItem("playing", f"{PRODUCT_NAME} | порядок без шума", disnake.Status.online),
             PresenceItem("listening", "модераторов и тревожные сигналы", disnake.Status.idle),
             PresenceItem("competing", "за чистый чат и спокойный сервер", disnake.Status.dnd),
             PresenceItem("watching", "dynamic voice rooms как диспетчер", disnake.Status.online),

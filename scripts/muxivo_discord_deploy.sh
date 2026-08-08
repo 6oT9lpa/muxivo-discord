@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ARCHIVE="${ARCHIVE:-/tmp/omnibot-release.tar.gz}"
+ARCHIVE="${ARCHIVE:-/tmp/muxivo-discord-release.tar.gz}"
 ROOT_TMP="${ROOT_TMP:-/root/tmp}"
-APP_DIR="${APP_DIR:-/opt/omnibot}"
+APP_DIR="${APP_DIR:-/opt/muxivo-discord}"
 BACKUP_DIR="${BACKUP_DIR:-/opt}"
-BACKUP="$BACKUP_DIR/omnibot.backup-$(date +%Y%m%d%H%M%S).tgz"
-ROOT_ARCHIVE="$ROOT_TMP/omnibot-release.tar.gz"
-SERVICES=(${SERVICES:-omnibot-bot.service omnibot-activity.service})
+BACKUP="$BACKUP_DIR/muxivo-discord.backup-$(date +%Y%m%d%H%M%S).tgz"
+ROOT_ARCHIVE="$ROOT_TMP/muxivo-discord-release.tar.gz"
+SERVICES=(${SERVICES:-muxivo-discord-bot.service muxivo-discord-activity.service})
 
 log() {
-    printf '[omnibot-deploy] %s\n' "$*"
+    printf '[muxivo-discord-deploy] %s\n' "$*"
 }
 
 mkdir -p "$ROOT_TMP"

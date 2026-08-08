@@ -72,7 +72,7 @@ def test_language_switcher_is_available_in_public_and_panel_headers() -> None:
     assert "selectLocale(option.code)" in switcher
     assert "<LanguageSwitcher />" in public_header
     assert "<LanguageSwitcher />" in panel_header
-    assert '"omnibot.activity.locale"' in i18n_module
+    assert '"muxivo-discord.activity.locale"' in i18n_module
     assert 'export type Locale = "en" | "ru"' in i18n_module
 
 

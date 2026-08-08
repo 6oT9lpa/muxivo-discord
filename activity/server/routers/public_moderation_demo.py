@@ -18,4 +18,4 @@ async def classify_public_demo(payload: PublicModerationDemoPayload) -> dict[str
         return await service.classify(payload.message)
     except Exception as exc:
         logger.exception("Public moderation demo classification failed message_length=%s", len(payload.message))
-        raise HTTPException(status_code=503, detail="AI moderator is temporarily unavailable") from exc
+        raise HTTPException(status_code=503, detail="Muxivo Core is temporarily unavailable") from exc

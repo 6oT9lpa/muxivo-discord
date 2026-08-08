@@ -30,6 +30,7 @@ pythonenv*
 *.sublime-*
 *.iml
 .codebase-memory/
+promo/
 
 # Discord Bot specific
 .env

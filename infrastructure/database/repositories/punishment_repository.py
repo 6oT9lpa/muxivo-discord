@@ -125,8 +125,8 @@ class PunishmentRepository(PunishmentRepositoryInterface, BaseRepository):
         if guild_id <= 0:
             raise ValueError("guild_id must be positive")
         normalized_source = source.upper()
-        if normalized_source not in {"AI_MODERATOR", "HUMAN", "EXTERNAL"}:
-            raise ValueError("source must be AI_MODERATOR, HUMAN or EXTERNAL")
+        if normalized_source not in {"MUXIVO_CORE", "HUMAN", "EXTERNAL"}:
+            raise ValueError("source must be MUXIVO_CORE, HUMAN or EXTERNAL")
         await self.execute_write(
             """
             INSERT INTO punishments (guild_id, user_id, moderator_id, type, reason, duration_seconds, expires_at, message_id, source)

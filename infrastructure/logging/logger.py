@@ -33,7 +33,7 @@ class LoggerManager:
         service_name = re.sub(
             r"[^a-zA-Z0-9_.-]+",
             "_",
-            os.getenv("OMNIBOT_SERVICE_NAME", "discord_bot"),
+            os.getenv("MUXIVO_DISCORD_SERVICE_NAME", "discord_bot"),
         ).strip("._") or "discord_bot"
         log_file = log_dir / f"{service_name}.log"
         activity_log_file = log_dir / f"{service_name}_activity.log"

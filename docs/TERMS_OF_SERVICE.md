@@ -1,17 +1,17 @@
-# Terms of Service for OmniBot
+# Terms of Service for Muxivo Discord
 
 **Effective Date:** June 18, 2026  
 **Last Updated:** July 23, 2026
 
-These Terms of Service govern use of OmniBot, including the Discord bot, slash commands, Discord Activity control panel, Creator Alerts, Dev Blog, logging, statistics, voice rooms, role tools, welcome tools, moderation commands, and AI moderation features.
+These Terms of Service govern use of Muxivo Discord, including the Discord bot, slash commands, Muxivo DS Activity control panel, Creator Alerts, Dev Blog, logging, statistics, voice rooms, role tools, welcome tools, moderation commands, and AI moderation features.
 
-By adding OmniBot to a server, using its commands, or opening the Activity panel, you agree to these Terms, the [Privacy Policy](./PRIVACY_POLICY.md), and Discord's applicable terms and policies.
+By adding Muxivo Discord to a server, using its commands, or opening the Activity panel, you agree to these Terms, the [Privacy Policy](./PRIVACY_POLICY.md), and Discord's applicable terms and policies.
 
 ## 1. Service Description
 
-OmniBot currently provides:
+Muxivo Discord currently provides:
 
-- Discord Activity control panel;
+- Muxivo DS Activity control panel;
 - Activity RBAC and role synchronization;
 - autoroles and role panels;
 - welcome messages;
@@ -22,14 +22,14 @@ OmniBot currently provides:
 - dynamic voice rooms;
 - Creator Alerts for Twitch, YouTube, and Kick;
 - Dev Blog drafts and publishing;
-- AI moderation channel coverage, policy settings, and local AI Moderator API integration;
+- AI moderation channel coverage, policy settings, and local Muxivo Core API integration;
 - bot settings, integrations, and health surfaces.
 
 ## 2. Eligibility
 
 Users must be allowed to use Discord under Discord rules and applicable law.
 
-Only server owners or authorized administrators should invite OmniBot, configure modules, or grant Activity permissions.
+Only server owners or authorized administrators should invite Muxivo Discord, configure modules, or grant Activity permissions.
 
 ## 3. Server Administrator Responsibilities
 
@@ -46,7 +46,7 @@ Server administrators are responsible for:
 
 ## 4. Acceptable Use
 
-You may use OmniBot to:
+You may use Muxivo Discord to:
 
 - manage your own Discord server;
 - assign roles and operate role panels;
@@ -62,7 +62,7 @@ You may use OmniBot to:
 
 ## 5. Prohibited Use
 
-You may not use OmniBot to:
+You may not use Muxivo Discord to:
 
 - violate Discord terms, community guidelines, or law;
 - harass, stalk, threaten, or discriminate against users;
@@ -79,9 +79,9 @@ We may restrict or terminate access if usage creates legal, security, privacy, o
 
 ## 6. Moderation Commands
 
-OmniBot may help moderators warn, mute, unmute, kick, ban, unban, purge messages, configure slowmode, and review punishment history.
+Muxivo Discord may help moderators warn, mute, unmute, kick, ban, unban, purge messages, configure slowmode, and review punishment history.
 
-The user running the command and the server administration that granted permission are responsible for the action. OmniBot does not define server rules and does not replace human judgment.
+The user running the command and the server administration that granted permission are responsible for the action. Muxivo Discord does not define server rules and does not replace human judgment.
 
 ## 7. Logs and Audit
 
@@ -89,7 +89,7 @@ Logs may contain Discord IDs, usernames, message content, moderation reasons, Ac
 
 Server administrators must keep log channels and Activity log access restricted. Logs must not be used for harassment, doxxing, blackmail, or unrelated surveillance.
 
-## 8. Discord Activity Access
+## 8. Muxivo DS Activity Access
 
 The protected Activity workspace is intended to run inside Discord.
 
@@ -101,7 +101,7 @@ Access is based on:
 - Activity role mappings;
 - per-module permissions.
 
-If roles are not synchronized or permissions are missing, OmniBot may deny access.
+If roles are not synchronized or permissions are missing, Muxivo Discord may deny access.
 
 ## 9. Creator Alerts
 
@@ -126,7 +126,7 @@ Users are responsible for Dev Blog content, image URLs, titles, and embedded mat
 
 ## 11. External Services
 
-OmniBot may interact with:
+Muxivo Discord may interact with:
 
 - Discord API;
 - Twitch;
@@ -158,16 +158,16 @@ Server administrators are responsible for:
 
 - selecting only channels that should be moderated by the AI module;
 - reviewing thresholds and maximum action limits before enabling strict behavior;
-- keeping OmniBot's role above only the roles it is intended to manage;
+- keeping Muxivo Discord's role above only the roles it is intended to manage;
 - informing members when AI moderation is active;
 - handling appeals, false positives, and false negatives;
 - keeping human staff responsible for final server policy.
 
-AI moderation should not be treated as a final authority. It is an assistive system and may make mistakes. Administrators, not OmniBot, are responsible for their server rules, appeal process, permission setup, and decisions to enable automated enforcement.
+AI moderation should not be treated as a final authority. It is an assistive system and may make mistakes. Administrators, not Muxivo Discord, are responsible for their server rules, appeal process, permission setup, and decisions to enable automated enforcement.
 
 ## 13. Availability and Changes
 
-OmniBot is provided "as is" and "as available". We do not guarantee uninterrupted operation, error-free behavior, permanent availability of every module, or compatibility with every Discord configuration.
+Muxivo Discord is provided "as is" and "as available". We do not guarantee uninterrupted operation, error-free behavior, permanent availability of every module, or compatibility with every Discord configuration.
 
 Features may change for security, stability, Discord compliance, or project development.
 
@@ -186,11 +186,11 @@ Test critical features on a test server before production use.
 
 ## 15. Privacy
 
-Data processing is described in the [Privacy Policy](./PRIVACY_POLICY.md). If you do not agree with required processing, stop using OmniBot, disable the relevant module, or remove the bot from the server.
+Data processing is described in the [Privacy Policy](./PRIVACY_POLICY.md). If you do not agree with required processing, stop using Muxivo Discord, disable the relevant module, or remove the bot from the server.
 
 ## 16. Bot Removal
 
-A server administrator may remove OmniBot at any time through Discord settings. Some stored data may remain until retention cleanup, backup expiration, or manual deletion, as described in the Privacy Policy.
+A server administrator may remove Muxivo Discord at any time through Discord settings. Some stored data may remain until retention cleanup, backup expiration, or manual deletion, as described in the Privacy Policy.
 
 ## 17. Changes to These Terms
 

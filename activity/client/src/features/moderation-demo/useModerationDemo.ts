@@ -98,9 +98,9 @@ export function useModerationDemo() {
 
   function addSystemMessage(content: string): void {
     appendMessage({
-      id: `omnibot-${Date.now()}-${messages.value.length}`,
+      id: `muxivo-discord-${Date.now()}-${messages.value.length}`,
       channelId: "general",
-      author: "OmniBot",
+      author: "Muxivo Discord",
       avatar: botAvatar,
       content,
       timestamp: t("home.demo.now"),
@@ -119,7 +119,7 @@ export function useModerationDemo() {
     const logMessages = createRotatingLogMessages(t);
     const embed = logMessages[logIndex % logMessages.length];
     logIndex += 1;
-    appendMessage({ id: `log-${Date.now()}`, channelId: "server-logs", author: "OmniBot", avatar: botAvatar, content: "", timestamp: t("home.demo.now"), kind: "log", embed });
+    appendMessage({ id: `log-${Date.now()}`, channelId: "server-logs", author: "Muxivo Discord", avatar: botAvatar, content: "", timestamp: t("home.demo.now"), kind: "log", embed });
   }
 
   function appendMessage(message: DemoMessage): void {

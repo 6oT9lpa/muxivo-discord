@@ -17,7 +17,7 @@ export const moduleOrder: ModuleKey[] = [
   "role-panels",
   "creator-alerts",
   "dev-blog",
-  "ai-moderator",
+  "muxivo-core",
   "logs",
   "server-stats",
   "voice-rooms",
@@ -39,7 +39,7 @@ export const accessConfigurableModules: ModuleKey[] = [
   "role-panels",
   "creator-alerts",
   "dev-blog",
-  "ai-moderator",
+  "muxivo-core",
   "logs",
   "bot-settings",
 ];
@@ -79,11 +79,11 @@ export const mockSession: PanelSession = {
 
 export const mockWelcome: WelcomeConfig = {
   guild_id: 1517163246862471249,
-  title: "Welcome to Omni",
+  title: "Welcome to Muxivo",
   description:
     "Hello {user}. You joined {server}, a community powered by automation, creator tools and clean Discord workflows.",
   thumbnail_url: null,
-  footer_text: "OmniBot Activity",
+  footer_text: "Muxivo DS Activity",
   footer_icon_url: null,
   color: 0x5865f2,
   is_enabled: true,
@@ -109,7 +109,7 @@ export const mockIntegrations: Record<string, unknown> = {
       { platform: "YouTube", count: 2, active_count: 1 },
     ],
   },
-  ai_moderator: { status: "configured", endpoint: "Local AI classifier connected" },
+  muxivo_core: { status: "configured", endpoint: "Local AI classifier connected" },
   database: { status: "configured", detail: "PostgreSQL stores bot state and Activity data." },
 };
 
@@ -132,7 +132,7 @@ export const accessMatrix: AccessMatrixRow[] = [
   row("ordinary", defaultVisibleModules, "view"),
   row("creator", [...defaultVisibleModules, "creator-alerts"], "edit"),
   row("developer", [...defaultVisibleModules, "dev-blog"], "publish"),
-  row("moderator", [...defaultVisibleModules, "ai-moderator", "logs"], "view"),
+  row("moderator", [...defaultVisibleModules, "muxivo-core", "logs"], "view"),
   row("administrator", moduleOrder, "manage"),
 ];
 

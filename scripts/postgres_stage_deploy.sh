@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/omnibot}"
+APP_DIR="${APP_DIR:-/opt/muxivo-discord}"
 SQLITE_DB="${SQLITE_DB:-$APP_DIR/data/nexsusguard.db}"
 POSTGRES_URL="${POSTGRES_URL:?POSTGRES_URL is required}"
 PYTHON_BIN="${PYTHON_BIN:-$APP_DIR/.venv/bin/python}"

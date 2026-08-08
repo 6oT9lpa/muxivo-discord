@@ -1,19 +1,19 @@
 [Unit]
-Description=OmniBot Activity API and Frontend
+Description=Muxivo Discord Discord Bot
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=omnibot
-Group=omnibot
-WorkingDirectory=/opt/omnibot
+User=muxivo-discord
+Group=muxivo-discord
+WorkingDirectory=/opt/muxivo-discord
 Environment=PYTHONUNBUFFERED=1
 Environment=PYTHONDONTWRITEBYTECODE=1
-EnvironmentFile=/opt/omnibot/.env
-ExecStart=/opt/omnibot/.venv/bin/python -m uvicorn activity.server.main:app --host 127.0.0.1 --port 8008
+EnvironmentFile=/opt/muxivo-discord/.env
+ExecStart=/opt/muxivo-discord/.venv/bin/python main.py
 Restart=always
-RestartSec=5
+RestartSec=10
 UMask=0077
 NoNewPrivileges=yes
 PrivateTmp=yes
@@ -35,8 +35,8 @@ SystemCallArchitectures=native
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 CapabilityBoundingSet=
 AmbientCapabilities=
-ReadOnlyPaths=/opt/omnibot
-ReadWritePaths=/opt/omnibot/data /opt/omnibot/logs
+ReadOnlyPaths=/opt/muxivo-discord
+ReadWritePaths=/opt/muxivo-discord/data /opt/muxivo-discord/logs
 
 [Install]
 WantedBy=multi-user.target

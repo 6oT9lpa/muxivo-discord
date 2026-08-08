@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/omnibot}"
+APP_DIR="${APP_DIR:-/opt/muxivo-discord}"
 ENV_FILE="${ENV_FILE:-$APP_DIR/.env}"
 POSTGRES_URL="${POSTGRES_URL:?POSTGRES_URL is required}"
 BACKUP="$ENV_FILE.backup-$(date +%Y%m%d%H%M%S)"
-SERVICES=(${SERVICES:-omnibot-bot.service omnibot-activity.service})
+SERVICES=(${SERVICES:-muxivo-discord-bot.service muxivo-discord-activity.service})
 
 cp "$ENV_FILE" "$BACKUP"
 

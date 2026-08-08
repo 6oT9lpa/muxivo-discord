@@ -35,7 +35,7 @@ const categoryByModule: Record<ModuleKey, (typeof categoryOrder)[number]> = {
   "role-panels": "configuration",
   "creator-alerts": "configuration",
   "dev-blog": "configuration",
-  "ai-moderator": "configuration",
+  "muxivo-core": "configuration",
   "ai-review": "review",
   "voice-rooms": "configuration",
   "bot-settings": "configuration",
@@ -58,7 +58,7 @@ const icons = {
   "role-panels": PanelsTopLeft,
   "creator-alerts": BellRing,
   "dev-blog": FileText,
-  "ai-moderator": Bot,
+  "muxivo-core": Bot,
   "ai-review": ClipboardCheck,
   logs: Activity,
   "server-stats": ChartNoAxesCombined,
@@ -72,8 +72,8 @@ const icons = {
 <template>
   <aside class="panel-sidebar">
     <RouterLink class="panel-brand" to="/">
-      <img class="panel-brand-logo" src="/omni-logo.png" alt="" />
-      <strong>OMNI</strong>
+      <img class="panel-brand-logo" src="/muxivo-logo.png" alt="" />
+      <strong>MUXIVO</strong>
       <span>{{ $t("panel.activity") }}</span>
     </RouterLink>
 

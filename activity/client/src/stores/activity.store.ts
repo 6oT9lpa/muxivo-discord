@@ -198,7 +198,7 @@ export const useActivityStore = defineStore("activity", {
   getters: {
     isAdmin: (state) => state.session?.access_level === "administrator",
     displayName: (state) =>
-      state.session?.user.global_name || state.session?.user.username || "Omni user",
+      state.session?.user.global_name || state.session?.user.username || "Muxivo user",
     availableModules: (state) => state.session?.available_modules ?? [],
   },
 
@@ -246,7 +246,7 @@ export const useActivityStore = defineStore("activity", {
     async bootDiscordActivity() {
       const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID;
       if (!clientId) {
-        throw new Error("VITE_DISCORD_CLIENT_ID is required for Discord Activity launch.");
+        throw new Error("VITE_DISCORD_CLIENT_ID is required for Muxivo DS Activity launch.");
       }
 
       this.mode = "discord";
@@ -293,8 +293,8 @@ export const useActivityStore = defineStore("activity", {
       await this.loadReferenceData();
       // The sidebar needs the backend-owned trusted-review flag before the
       // user opens any module, otherwise Review would appear only after a
-      // detour through AI Moderator.
-      if (this.can("ai-moderator")) {
+      // detour through Muxivo Core.
+      if (this.can("muxivo-core")) {
         this.aiModerator = await getAiModeratorSettings(discordSdk.guildId, token.access_token);
       }
       await this.refreshHealth(true);
@@ -470,7 +470,7 @@ export const useActivityStore = defineStore("activity", {
           this.roles = settings.roles;
           this.activityRoles = settings.activity_roles;
           this.channelPurposes = settings.channel_purposes;
-        } else if (module === "ai-moderator") {
+        } else if (module === "muxivo-core") {
           [this.aiModerator, this.mediaPolicy] = await Promise.all([
             getAiModeratorSettings(guildId, this.token), getMediaPolicy(guildId, this.token),
           ]);
@@ -765,7 +765,7 @@ function resolvePermissions(level: AccessLevel): Record<ModuleKey, PermissionLev
   }
 
   if (level === "moderator") {
-    permissions["ai-moderator"] = "view";
+    permissions["muxivo-core"] = "view";
     permissions.logs = "view";
   }
 
@@ -780,7 +780,7 @@ function emptyPermissions(): Record<ModuleKey, PermissionLevel> {
     "role-panels": "disabled",
     "creator-alerts": "disabled",
     "dev-blog": "disabled",
-    "ai-moderator": "disabled",
+    "muxivo-core": "disabled",
     "ai-review": "disabled",
     logs: "disabled",
     "server-stats": "disabled",

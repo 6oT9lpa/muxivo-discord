@@ -31,7 +31,7 @@ describe("ModerationDemo", () => {
     expect(wrapper.get("input").attributes("disabled")).toBeDefined();
 
     await vi.advanceTimersByTimeAsync(900);
-    expect(wrapper.text()).toContain("Message removed by OmniBot policy.");
+    expect(wrapper.text()).toContain("Message removed by Muxivo Discord policy.");
     wrapper.unmount();
   });
 

@@ -7,17 +7,17 @@ x-logging: &default-logging
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: omnibot-postgres
+    container_name: muxivo-discord-postgres
     restart: unless-stopped
     logging: *default-logging
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-omnibot}
-      POSTGRES_USER: ${POSTGRES_USER:-omnibot}
+      POSTGRES_DB: ${POSTGRES_DB:-muxivo-discord}
+      POSTGRES_USER: ${POSTGRES_USER:-muxivo-discord}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-omnibot} -d ${POSTGRES_DB:-omnibot}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-muxivo-discord} -d ${POSTGRES_DB:-muxivo-discord}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,12 +26,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: omnibot-migrate
+    container_name: muxivo-discord-migrate
     restart: "no"
     logging: *default-logging
     environment:
-      OMNIBOT_SERVICE_NAME: migrate
-      DATABASE_URL: postgresql://${POSTGRES_USER:-omnibot}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-omnibot}
+      MUXIVO_DISCORD_SERVICE_NAME: migrate
+      DATABASE_URL: postgresql://${POSTGRES_USER:-muxivo-discord}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-muxivo-discord}
     env_file:
       - .env
     volumes:
@@ -45,12 +45,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: omnibot-bot
+    container_name: muxivo-discord-bot
     restart: unless-stopped
     logging: *default-logging
     environment:
-      OMNIBOT_SERVICE_NAME: bot
-      DATABASE_URL: postgresql://${POSTGRES_USER:-omnibot}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-omnibot}
+      MUXIVO_DISCORD_SERVICE_NAME: bot
+      DATABASE_URL: postgresql://${POSTGRES_USER:-muxivo-discord}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-muxivo-discord}
       DISCORD_PROXY_URL: ${DISCORD_PROXY_URL_DOCKER:-}
     env_file:
       - .env
@@ -68,12 +68,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: omnibot-activity-api
+    container_name: muxivo-discord-activity-api
     restart: unless-stopped
     logging: *default-logging
     environment:
-      OMNIBOT_SERVICE_NAME: activity_api
-      DATABASE_URL: postgresql://${POSTGRES_USER:-omnibot}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-omnibot}
+      MUXIVO_DISCORD_SERVICE_NAME: activity_api
+      DATABASE_URL: postgresql://${POSTGRES_USER:-muxivo-discord}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-muxivo-discord}
     env_file:
       - .env
     volumes:
@@ -104,7 +104,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
-    container_name: omnibot-activity-client
+    container_name: muxivo-discord-activity-client
     restart: unless-stopped
     logging: *default-logging
     ports:
@@ -114,7 +114,7 @@ services:
 
   ngrok:
     image: ngrok/ngrok:latest
-    container_name: omnibot-ngrok
+    container_name: muxivo-discord-ngrok
     restart: unless-stopped
     logging: *default-logging
     command:

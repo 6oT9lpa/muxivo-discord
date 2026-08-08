@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from time import time_ns
 
 from application.dto.ai_moderation_request import AiModerationRequest
-from infrastructure.ai.ai_moderator_api_client import AiModeratorApiClient
+from infrastructure.ai.muxivo_core_api_client import AiModeratorApiClient
 from infrastructure.config import get_config
 from infrastructure.logging import get_logger
 
@@ -24,14 +24,14 @@ class PublicModerationDemoService:
         if self._client is not None:
             return self._client
         config = get_config()
-        api_key = config.ai_moderator_internal_api_key
+        api_key = config.muxivo_core_internal_api_key
         if api_key is None:
             logger.error("Public moderation demo is unavailable because the AI API key is not configured")
             raise RuntimeError("AI moderation demo is not configured")
         self._client = AiModeratorApiClient(
-            base_url=config.ai_moderator_api_url,
+            base_url=config.muxivo_core_api_url,
             api_key=api_key.get_secret_value(),
-            timeout_seconds=config.ai_moderator_request_timeout_seconds,
+            timeout_seconds=config.muxivo_core_request_timeout_seconds,
         )
         return self._client
 

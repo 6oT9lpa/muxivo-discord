@@ -1,4 +1,4 @@
-"""Apply PostgreSQL migrations before starting OmniBot services."""
+"""Apply PostgreSQL migrations before starting Muxivo Discord services."""
 
 from __future__ import annotations
 

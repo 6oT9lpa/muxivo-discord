@@ -53,8 +53,8 @@ def test_public_moderation_demo_endpoint_runs_the_complete_request_response_flow
     app = FastAPI()
     app.include_router(demo_router.router)
 
-    response = TestClient(app).post("/api/public/moderation-demo/classify", json={"message": "Hello, OmniBot!"})
+    response = TestClient(app).post("/api/public/moderation-demo/classify", json={"message": "Hello, Muxivo Discord!"})
 
     assert response.status_code == 200
     assert response.json()["action"] == "IGNORE"
-    service.classify.assert_awaited_once_with("Hello, OmniBot!")
+    service.classify.assert_awaited_once_with("Hello, Muxivo Discord!")

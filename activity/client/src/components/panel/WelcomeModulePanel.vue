@@ -106,7 +106,7 @@ function setColor(value: string) {
         </label>
         <label>
           {{ $t("welcome.footer") }}
-          <input v-model="welcomeDraft.footer_text" placeholder="OmniBot Activity" />
+          <input v-model="welcomeDraft.footer_text" placeholder="Muxivo DS Activity" />
         </label>
         <label>
           {{ $t("welcome.thumbnail_url") }}

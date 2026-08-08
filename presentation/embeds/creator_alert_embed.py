@@ -63,7 +63,7 @@ class CreatorAlertEmbedBuilder:
         else:
             embed.add_field(name="Тип", value=CreatorAlertEmbedBuilder.kind_name(event.alert_kind), inline=True)
         embed.set_footer(
-            text="OmniBot Creator Alerts",
+            text="Muxivo Discord Creator Alerts",
             icon_url=event.thumbnail_url or creator_icon_url,
         )
         if event.thumbnail_url:

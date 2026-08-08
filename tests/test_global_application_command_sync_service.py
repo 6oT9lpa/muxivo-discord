@@ -16,7 +16,7 @@ async def test_global_command_sync_updates_existing_commands_and_preserves_entry
         command_bodies,
         [
             {"id": "1", "name": "set", "type": 1},
-            {"id": "99", "name": "Open Omni", "type": 4},
+            {"id": "99", "name": "Open Muxivo", "type": 4},
         ],
     )
 

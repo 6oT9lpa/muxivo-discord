@@ -22,11 +22,11 @@ class AiModeratorHealthProbe:
             async with httpx.AsyncClient(timeout=self._timeout_seconds, trust_env=False) as client:
                 response = await client.get(self._health_url)
             if response.status_code >= 400:
-                logger.warning("AI moderator health probe failed status=%s", response.status_code)
+                logger.warning("Muxivo Core health probe failed status=%s", response.status_code)
                 return None
         except httpx.HTTPError:
-            logger.exception("AI moderator health probe raised an HTTP error")
+            logger.exception("Muxivo Core health probe raised an HTTP error")
             return None
         latency = round((time.perf_counter() - started) * 1000)
-        logger.info("AI moderator latency measured latency_ms=%s", latency)
+        logger.info("Muxivo Core latency measured latency_ms=%s", latency)
         return latency

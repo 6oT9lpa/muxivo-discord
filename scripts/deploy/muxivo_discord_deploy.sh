@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Deploy an OmniBot release without replacing secrets or runtime data.
+# Deploy an Muxivo Discord release without replacing secrets or runtime data.
 set -euo pipefail
 
-ARCHIVE="${ARCHIVE:-/tmp/omnibot-release.tar.gz}"
-APP_DIR="${APP_DIR:-/opt/omnibot}"
-BACKUP="/opt/omnibot.backup-$(date +%Y%m%d%H%M%S).tgz"
-SERVICES=(omnibot-bot omnibot-activity)
+ARCHIVE="${ARCHIVE:-/tmp/muxivo-discord-release.tar.gz}"
+APP_DIR="${APP_DIR:-/opt/muxivo-discord}"
+BACKUP="/opt/muxivo-discord.backup-$(date +%Y%m%d%H%M%S).tgz"
+SERVICES=(muxivo-discord-bot muxivo-discord-activity)
 
-log() { printf '[omnibot-deploy] %s\n' "$*"; }
+log() { printf '[muxivo-discord-deploy] %s\n' "$*"; }
 
 if [ -d "$APP_DIR" ]; then
   log "Creating backup: $BACKUP"
-  tar --exclude='omnibot/.venv' --exclude='omnibot/.env' --exclude='omnibot/data' --exclude='omnibot/logs' \
+  tar --exclude='muxivo-discord/.venv' --exclude='muxivo-discord/.env' --exclude='muxivo-discord/data' --exclude='muxivo-discord/logs' \
     -C "$(dirname "$APP_DIR")" -czf "$BACKUP" "$(basename "$APP_DIR")"
 fi
 
@@ -25,9 +25,9 @@ tar -xzf "$ARCHIVE" -C "$APP_DIR"
 
 # Migrations run as the service account so database-created files retain the
 # same ownership and the production .env remains the sole source of secrets.
-su -s /bin/bash omnibot -c "cd '$APP_DIR' && set -a && . ./.env && set +a && ./.venv/bin/alembic upgrade head"
+su -s /bin/bash muxivo-discord -c "cd '$APP_DIR' && set -a && . ./.env && set +a && ./.venv/bin/alembic upgrade head"
 
-chown -R omnibot:omnibot "$APP_DIR"
+chown -R muxivo-discord:muxivo-discord "$APP_DIR"
 systemctl start "${SERVICES[@]}"
 trap - EXIT
 systemctl is-active "${SERVICES[@]}"

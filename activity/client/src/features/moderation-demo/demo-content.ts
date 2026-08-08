@@ -92,7 +92,7 @@ export function createInitialDemoMessages(translate: DemoTranslator): DemoMessag
   const logMessages = initialLogSeeds.map((seed, index) => ({
     id: `logs-${index + 1}`,
     channelId: "server-logs" as const,
-    author: "OmniBot",
+    author: "Muxivo Discord",
     avatar: "O",
     content: "",
     timestamp: ["20:39", "20:40", "20:42", "20:45"][index],
@@ -102,7 +102,7 @@ export function createInitialDemoMessages(translate: DemoTranslator): DemoMessag
   const devMessages = Array.from({ length: 10 }, (_, index) => ({
     id: `dev-${index + 1}`,
     channelId: "dev-blog" as const,
-    author: "OmniBot",
+    author: "Muxivo Discord",
     avatar: "O",
     content: translate(`home.demo.dev.${index + 1}`),
     timestamp: translate(`home.demo.date.${index + 1}`),

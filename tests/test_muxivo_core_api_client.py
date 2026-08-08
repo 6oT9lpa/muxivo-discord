@@ -6,10 +6,10 @@ import httpx
 
 from application.dto.ai_moderation_request import AiModerationRequest
 from application.dto.user_moderation_context import UserModerationContext, UserPunishmentStatistics
-from infrastructure.ai.ai_moderator_api_client import AiModeratorApiClient
+from infrastructure.ai.muxivo_core_api_client import AiModeratorApiClient
 
 
-def test_ai_moderator_payload_serializes_discord_ids_as_strings() -> None:
+def test_muxivo_core_payload_serializes_discord_ids_as_strings() -> None:
     client = AiModeratorApiClient("http://127.0.0.1:8000", "key", 1)
     payload = client._moderation_payload(
         AiModerationRequest(
@@ -33,7 +33,7 @@ def test_ai_moderator_payload_serializes_discord_ids_as_strings() -> None:
     assert payload["mention_count"] == 2
 
 
-def test_ai_moderator_payload_includes_validated_user_context() -> None:
+def test_muxivo_core_payload_includes_validated_user_context() -> None:
     client = AiModeratorApiClient("http://127.0.0.1:8000", "key", 1)
     payload = client._moderation_payload(
         AiModerationRequest(
@@ -55,7 +55,7 @@ def test_ai_moderator_payload_includes_validated_user_context() -> None:
     assert payload["user_context"]["punishments"]["total_in_window"] == 2
 
 
-def test_ai_moderator_payload_does_not_include_removed_author_fields() -> None:
+def test_muxivo_core_payload_does_not_include_removed_author_fields() -> None:
     client = AiModeratorApiClient("http://127.0.0.1:8000", "key", 1)
     payload = client._moderation_payload(
         AiModerationRequest(
@@ -80,7 +80,7 @@ def test_media_policy_requests_forward_verified_scope_and_revision() -> None:
         return httpx.Response(200, json={"source": "DATABASE", "revision": 4})
 
     async def exercise() -> None:
-        client = AiModeratorApiClient("http://ai-moderator", "internal-key", 1)
+        client = AiModeratorApiClient("http://muxivo-core", "internal-key", 1)
         client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         try:
             await client.get_media_policy(123)
@@ -115,7 +115,7 @@ def test_feedback_request_uses_internal_api_and_idempotent_lineage() -> None:
         return httpx.Response(200, json={"status": "accepted", "event_id": 9, "correlation_id": "cid"})
 
     async def exercise() -> None:
-        client = AiModeratorApiClient("http://ai-moderator", "internal-key", 1)
+        client = AiModeratorApiClient("http://muxivo-core", "internal-key", 1)
         client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         try:
             await client.submit_feedback(

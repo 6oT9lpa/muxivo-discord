@@ -91,9 +91,9 @@ async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(a
     delivered_feedback = []
 
     class _Config:
-        ai_moderator_api_url = "http://ai-moderator"
-        ai_moderator_internal_api_key = SecretStr("feedback-secret-key")
-        ai_moderator_request_timeout_seconds = 1
+        muxivo_core_api_url = "http://muxivo-core"
+        muxivo_core_internal_api_key = SecretStr("feedback-secret-key")
+        muxivo_core_request_timeout_seconds = 1
 
     class _Client:
         def __init__(self, *_): pass
@@ -187,9 +187,9 @@ async def test_test_mode_simulation_never_creates_dataset_event(activity_ai_db, 
     monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
 
     class _Config:
-        ai_moderator_api_url = "http://test"
-        ai_moderator_internal_api_key = SecretStr("key")
-        ai_moderator_request_timeout_seconds = 1
+        muxivo_core_api_url = "http://test"
+        muxivo_core_internal_api_key = SecretStr("key")
+        muxivo_core_request_timeout_seconds = 1
 
     class _Client:
         def __init__(self, *_): pass

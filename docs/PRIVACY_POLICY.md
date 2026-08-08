@@ -1,26 +1,26 @@
-# Privacy Policy for OmniBot
+# Privacy Policy for Muxivo Discord
 
 **Effective Date:** June 18, 2026  
 **Last Updated:** July 23, 2026
 
-This Privacy Policy explains what data OmniBot processes, why it is processed, how it is stored, and how deletion or access requests can be made.
+This Privacy Policy explains what data Muxivo Discord processes, why it is processed, how it is stored, and how deletion or access requests can be made.
 
-OmniBot operates inside Discord servers and uses the Discord API. Use of OmniBot also remains subject to the [Discord Terms of Service](https://discord.com/terms), [Discord Privacy Policy](https://discord.com/privacy), Discord Developer Terms, and Discord Developer Policy.
+Muxivo Discord operates inside Discord servers and uses the Discord API. Use of Muxivo Discord also remains subject to the [Discord Terms of Service](https://discord.com/terms), [Discord Privacy Policy](https://discord.com/privacy), Discord Developer Terms, and Discord Developer Policy.
 
 ## 1. Controller and Contact
 
-Bot operator: **6oT9lpa / OmniBot project team**.  
+Bot operator: **6oT9lpa / Muxivo Discord project team**.
 Contact: **Discord Support Server: https://discord.gg/wUb3Js2wzt**.
 
-Server administrators are also responsible for how OmniBot is configured on their server: which modules are enabled, which channels receive logs, which roles can access Activity tabs, and who can view moderation or audit information.
+Server administrators are also responsible for how Muxivo Discord is configured on their server: which modules are enabled, which channels receive logs, which roles can access Activity tabs, and who can view moderation or audit information.
 
 ## 2. Data Processed By Current Modules
 
-OmniBot processes only data needed for configured features.
+Muxivo Discord processes only data needed for configured features.
 
 ### 2.1 Server and Configuration Data
 
-OmniBot may store:
+Muxivo Discord may store:
 
 - Discord server ID;
 - configured channel IDs for welcome, logs, stream announcements, Dev Blog, and other purposes;
@@ -33,7 +33,7 @@ OmniBot may store:
 
 ### 2.2 User and Member Data
 
-OmniBot may store or process:
+Muxivo Discord may store or process:
 
 - Discord user ID;
 - username, display name, avatar URL, and role IDs where needed for embeds, audit logs, and permissions;
@@ -44,7 +44,7 @@ OmniBot may store or process:
 
 ### 2.3 Message and Log Data
 
-When logging or moderation modules are enabled, OmniBot may process:
+When logging or moderation modules are enabled, Muxivo Discord may process:
 
 - message ID;
 - author ID;
@@ -55,11 +55,11 @@ When logging or moderation modules are enabled, OmniBot may process:
 - event type;
 - moderation actions, punishment reasons, and durations.
 
-Message logs are used for server administration, moderation review, audit, and statistics. OmniBot does not intentionally read private direct messages unless a user directly interacts with the bot in DMs or Discord sends an interaction event to the bot.
+Message logs are used for server administration, moderation review, audit, and statistics. Muxivo Discord does not intentionally read private direct messages unless a user directly interacts with the bot in DMs or Discord sends an interaction event to the bot.
 
 ### 2.4 Creator Alerts and External Platform Data
 
-For Creator Alerts, OmniBot may store:
+For Creator Alerts, Muxivo Discord may store:
 
 - creator Discord user ID;
 - platform: Twitch, YouTube, or Kick;
@@ -74,11 +74,11 @@ For Creator Alerts, OmniBot may store:
 - active/paused state;
 - last announced event ID and last checked time.
 
-OmniBot may contact Twitch, YouTube, or Kick APIs/public endpoints only for configured monitoring and publication features. Those services have their own policies.
+Muxivo Discord may contact Twitch, YouTube, or Kick APIs/public endpoints only for configured monitoring and publication features. Those services have their own policies.
 
 ### 2.5 Dev Blog Data
 
-For Dev Blog, OmniBot may store:
+For Dev Blog, Muxivo Discord may store:
 
 - post title;
 - content;
@@ -90,7 +90,7 @@ For Dev Blog, OmniBot may store:
 
 ### 2.6 Activity Panel Data
 
-When a user opens the Discord Activity panel, OmniBot processes:
+When a user opens the Muxivo DS Activity panel, Muxivo Discord processes:
 
 - Discord OAuth code;
 - backend-exchanged Discord access token for the current Activity session;
@@ -103,7 +103,7 @@ The Discord client secret is handled only by the backend. It must not be placed 
 
 ### 2.7 Technical Logs
 
-OmniBot writes technical logs to diagnose errors and keep services stable. Logs may contain:
+Muxivo Discord writes technical logs to diagnose errors and keep services stable. Logs may contain:
 
 - timestamp;
 - module name;
@@ -114,7 +114,7 @@ OmniBot writes technical logs to diagnose errors and keep services stable. Logs 
 
 ### 2.8 AI Moderation Data
 
-When AI moderation is enabled and channels are selected in Activity, OmniBot may process and store:
+When AI moderation is enabled and channels are selected in Activity, Muxivo Discord may process and store:
 
 - selected moderated channel IDs;
 - guild AI moderation policy settings;
@@ -122,20 +122,20 @@ When AI moderation is enabled and channels are selected in Activity, OmniBot may
 - Discord message ID, guild ID, channel ID, author ID, timestamp, and message text for covered channels;
 - reply context when a covered message uses Discord's reply feature: referenced message ID, referenced author ID, and referenced message text;
 - a bounded set of recent messages and timestamps from the same author for flood/spam detection;
-- AI Moderator request and response metadata such as labels, confidence, risk score, reason code, proposed and final decision action, execution status, and latency;
+- Muxivo Core request and response metadata such as labels, confidence, risk score, reason code, proposed and final decision action, execution status, and latency;
 - configured policy values, including enforcement mode, action limits, confidence thresholds, blacklist words, allowed domains, and beta acknowledgement;
 - moderation queue errors, health check results, and audit events needed to diagnose or appeal an action;
 - limited metadata for enforcement notices, such as server ID, channel ID, action type, and message time when a Discord DM warning is sent.
 
-For an automated timeout that requires temporary removal of administrator-permission roles, OmniBot stores only the IDs of roles it removed, the user ID, server ID, and restoration time. This record is used solely to restore eligible roles after the timeout; it is not used for profiling.
+For an automated timeout that requires temporary removal of administrator-permission roles, Muxivo Discord stores only the IDs of roles it removed, the user ID, server ID, and restoration time. This record is used solely to restore eligible roles after the timeout; it is not used for profiling.
 
-The current production design uses a local/self-hosted AI Moderator API. Messages are not sent to a commercial third-party AI API by default. The AI Moderator may use local rules, local ruBERT model inference, policy resolution, and optional fallback components configured by the operator.
+The current production design uses a local/self-hosted Muxivo Core API. Messages are not sent to a commercial third-party AI API by default. The Muxivo Core may use local rules, local ruBERT model inference, policy resolution, and optional fallback components configured by the operator.
 
 Only channels selected by administrators in Activity are covered by AI moderation. Server administrators are responsible for informing members when AI moderation is enabled.
 
 ## 3. Data We Do Not Intentionally Collect
 
-OmniBot does not intentionally collect:
+Muxivo Discord does not intentionally collect:
 
 - Discord passwords;
 - user tokens;
@@ -160,7 +160,7 @@ Data is used to:
 - operate voice rooms;
 - publish Creator Alerts and Dev Blog posts;
 - prevent duplicate stream announcements;
-- send selected-channel messages to the local AI Moderator API;
+- send selected-channel messages to the local Muxivo Core API;
 - evaluate reply and flood/spam context only for selected AI-moderated channels;
 - apply configured AI moderation policy and staff review workflows;
 - send moderation notices to the affected member by Discord DM when an action includes a warning, where Discord permits delivery;
@@ -173,11 +173,11 @@ We do not sell or rent user data.
 
 Data may be processed by or visible to:
 
-- Discord, because OmniBot operates through Discord APIs;
-- the hosting provider or VPS where OmniBot runs;
+- Discord, because Muxivo Discord operates through Discord APIs;
+- the hosting provider or VPS where Muxivo Discord runs;
 - PostgreSQL storage configured by the operator;
 - Twitch, YouTube, and Kick when Creator Alerts are configured;
-- the local/self-hosted AI Moderator service when AI moderation is enabled;
+- the local/self-hosted Muxivo Core service when AI moderation is enabled;
 - proxy infrastructure such as VLESS/Xray when Discord traffic is routed through it;
 - server administrators and moderators with access to logs or Activity panels;
 - authorities when legally required.
@@ -229,8 +229,8 @@ Security measures include:
 - log rotation;
 - avoiding frontend storage of secrets;
 - optional proxy configuration via server environment.
-- local AI Moderator API keys stored in server `.env`;
-- AI Moderator access restricted to backend services.
+- local Muxivo Core API keys stored in server `.env`;
+- Muxivo Core access restricted to backend services.
 - policy checks before automated timeout, kick, or ban;
 - role-hierarchy checks before temporary administrator-role removal or restoration.
 
@@ -238,7 +238,7 @@ No system is perfectly secure. Report suspected leaks or vulnerabilities through
 
 ## 9. Children and Minimum Age
 
-OmniBot is not intended for users below the minimum age required by Discord and local law.
+Muxivo Discord is not intended for users below the minimum age required by Discord and local law.
 
 ## 10. Changes
 

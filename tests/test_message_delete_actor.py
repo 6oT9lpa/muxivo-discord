@@ -62,7 +62,7 @@ class _Bot:
 
 
 @pytest.mark.asyncio
-async def test_ai_delete_is_attributed_to_omnibot() -> None:
+async def test_ai_delete_is_attributed_to_muxivo_discord() -> None:
     bot_user = _User(100)
     service = _LoggingService()
     cog = LoggingCog(_Bot(bot_user), service, None, None)

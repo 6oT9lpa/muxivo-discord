@@ -10,9 +10,9 @@ const activity = useActivityStore();
 <template>
   <header class="app-header">
     <RouterLink class="wordmark" to="/" :aria-label="$t('header.home')">
-      <img class="wordmark-logo" src="/omni-logo.png" alt="" />
+      <img class="wordmark-logo" src="/muxivo-logo.png" alt="" />
       <span>
-        <span class="wordmark-main">OMNI</span>
+        <span class="wordmark-main">MUXIVO</span>
         <span class="wordmark-sub">{{ $t("header.discord_bot") }}</span>
       </span>
     </RouterLink>

@@ -1,10 +1,13 @@
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
+import disnake
 import pytest
 
 from application.dto.ai_moderation_decision import AiModerationDecision
 from application.dto.ai_moderation_request import AiModerationRequest
 from application.services.user_moderation_context_builder import UserModerationContextBuilder
+from core.domain.value_objects import PunishmentType
 from presentation.cogs.ai_moderation_cog import AiModerationCog
 
 
@@ -35,6 +38,15 @@ class _ElevatedSettings(_Settings):
         return {"enforcement_mode": "ELEVATED", "beta_enforcement_acknowledged": True}
 
 
+class _AutomatedTimeoutSettings(_Settings):
+    async def get_policy(self, _):
+        return {
+            "enforcement_mode": "ELEVATED",
+            "beta_enforcement_acknowledged": True,
+            "allow_automated_timeout": True,
+        }
+
+
 class _Queue:
     def __init__(self): self.actions = []
     async def report_action(self, *action): self.actions.append(action)
@@ -45,8 +57,13 @@ class _ChannelService:
 
 
 class _Punishments:
+    def __init__(self):
+        self.added = []
+
     async def list_for_user(self, *_args, **_kwargs): return []
-    async def add_punishment(self, *_args, **_kwargs): return 1
+    async def add_punishment(self, *args, **kwargs):
+        self.added.append((args, kwargs))
+        return 1
 
 
 class _SentChannel:
@@ -141,6 +158,200 @@ async def test_multi_step_action_reports_only_the_final_decision() -> None:
 
     assert executed == ["DELETE", "WARN"]
     assert queue.actions == [(1, "DELETE_WARN", "SUCCESS", False)]
+
+
+@pytest.mark.parametrize(
+    ("owner_id", "bot_role_position", "member_role_position", "can_timeout"),
+    (
+        (3, 10, 1, True),
+        (999, 10, 10, True),
+        (999, 10, 1, False),
+    ),
+)
+def test_unmanageable_member_action_falls_back_to_delete_warn(
+    owner_id: int,
+    bot_role_position: int,
+    member_role_position: int,
+    can_timeout: bool,
+) -> None:
+    cog = object.__new__(AiModerationCog)
+    guild = SimpleNamespace(
+        owner_id=owner_id,
+        me=SimpleNamespace(
+            id=99,
+            top_role=SimpleNamespace(position=bot_role_position),
+            guild_permissions=SimpleNamespace(moderate_members=can_timeout),
+        ),
+    )
+    member = SimpleNamespace(
+        id=3,
+        top_role=SimpleNamespace(position=member_role_position),
+        guild_permissions=SimpleNamespace(administrator=False),
+        roles=(),
+    )
+    decision = AiModerationDecision(
+        event_id=1,
+        guild_id=1,
+        user_id=3,
+        message_id=4,
+        risk_score=100,
+        action="TIMEOUT",
+        primary_label="THREAT",
+        labels=("THREAT", "TOXIC"),
+        execution_plan=("DELETE", "TIMEOUT"),
+        dry_run=False,
+    )
+
+    adjusted = cog._limit_to_executable_member_action(guild, member, decision)
+
+    assert adjusted.action == "DELETE_WARN"
+    assert adjusted.proposed_action == "TIMEOUT"
+    assert adjusted.execution_plan == ("DELETE", "WARN")
+
+
+def test_test_mode_preserves_unmanageable_member_action() -> None:
+    cog = object.__new__(AiModerationCog)
+    guild = SimpleNamespace(owner_id=3)
+    member = SimpleNamespace(id=3)
+    decision = AiModerationDecision(
+        event_id=1,
+        guild_id=1,
+        user_id=3,
+        message_id=4,
+        risk_score=100,
+        action="TIMEOUT",
+        primary_label="THREAT",
+        labels=("THREAT",),
+        execution_plan=("DELETE", "TIMEOUT"),
+        dry_run=True,
+    )
+
+    assert cog._limit_to_executable_member_action(guild, member, decision) is decision
+
+
+@pytest.mark.parametrize(
+    ("action", "permission_name"),
+    (
+        ("TIMEOUT", "moderate_members"),
+        ("KICK", "kick_members"),
+        ("BAN", "ban_members"),
+    ),
+)
+def test_manageable_high_impact_member_action_is_preserved(
+    action: str,
+    permission_name: str,
+) -> None:
+    cog = object.__new__(AiModerationCog)
+    permissions = SimpleNamespace(
+        moderate_members=False,
+        kick_members=False,
+        ban_members=False,
+    )
+    setattr(permissions, permission_name, True)
+    guild = SimpleNamespace(
+        owner_id=999,
+        me=SimpleNamespace(
+            id=99,
+            top_role=SimpleNamespace(position=10),
+            guild_permissions=permissions,
+        ),
+    )
+    member = SimpleNamespace(
+        id=3,
+        top_role=SimpleNamespace(position=1),
+        guild_permissions=SimpleNamespace(administrator=False),
+        roles=(),
+    )
+    decision = AiModerationDecision(
+        event_id=1,
+        guild_id=1,
+        user_id=3,
+        message_id=4,
+        risk_score=100,
+        action=action,
+        primary_label="THREAT",
+        labels=("THREAT",),
+        execution_plan=("DELETE", action),
+        dry_run=False,
+    )
+
+    assert cog._limit_to_executable_member_action(guild, member, decision) is decision
+
+
+@pytest.mark.asyncio
+async def test_discord_forbidden_timeout_falls_back_to_warning_after_delete() -> None:
+    settings = _AutomatedTimeoutSettings()
+    queue = _Queue()
+    punishments = _Punishments()
+    member = SimpleNamespace(
+        id=3,
+        top_role=SimpleNamespace(position=1),
+        guild_permissions=SimpleNamespace(administrator=False),
+        roles=(),
+    )
+    guild = SimpleNamespace(
+        id=1,
+        owner_id=999,
+        me=SimpleNamespace(
+            id=99,
+            top_role=SimpleNamespace(position=10),
+            guild_permissions=SimpleNamespace(moderate_members=True),
+        ),
+        get_member=lambda _user_id: member,
+        get_channel=lambda _channel_id: None,
+    )
+    bot = SimpleNamespace(get_guild=lambda _guild_id: guild)
+    cog = AiModerationCog(
+        bot,
+        settings,
+        _ChannelService(),
+        queue,
+        UserModerationContextBuilder(punishments, _Events(settings)),
+        punishments,
+    )
+    executed = []
+    sent_logs = []
+
+    async def execute(_guild, _member, _message, action, _dry_run, _decision, _request):
+        executed.append(action)
+        if action == "TIMEOUT":
+            response = SimpleNamespace(status=403, reason="Forbidden")
+            raise disnake.Forbidden(response, {"message": "Missing Permissions", "code": 50013})
+
+    async def send_log(_guild, _request, final_decision, status):
+        sent_logs.append((final_decision.action, final_decision.proposed_action, status))
+
+    cog._execute_action = execute
+    cog._send_log = send_log
+    request = AiModerationRequest(
+        guild_id=1,
+        channel_id=2,
+        user_id=3,
+        message_id=4,
+        raw_text="unsafe",
+        created_at=datetime.now(timezone.utc),
+    )
+    decision = AiModerationDecision(
+        event_id=1,
+        guild_id=1,
+        user_id=3,
+        message_id=4,
+        risk_score=100,
+        action="TIMEOUT",
+        primary_label="THREAT",
+        labels=("THREAT", "TOXIC"),
+        execution_plan=("TIMEOUT",),
+        dry_run=False,
+    )
+
+    await cog.handle_decision(request, decision)
+
+    assert executed == ["DELETE", "TIMEOUT", "WARN"]
+    assert queue.actions == [(1, "DELETE_WARN", "SUCCESS", False)]
+    assert settings.events[0][5:7] == ("DELETE_WARN", "TIMEOUT")
+    assert settings.events[0][-1] == "SUCCESS"
+    assert sent_logs == [("DELETE_WARN", "TIMEOUT", "SUCCESS")]
+    assert punishments.added[0][0][2] == PunishmentType.WARN
 
 
 @pytest.mark.parametrize(("severity", "risk_score", "expected"), [(1, 20, timedelta(minutes=10)), (2, 20, timedelta(minutes=20)), (3, 20, timedelta(hours=1)), (4, 20, timedelta(hours=6)), (5, 20, timedelta(hours=24)), (1, 90, timedelta(hours=24))])

@@ -1,6 +1,6 @@
-# OmniBot Discord Activity
+# Muxivo DS Activity
 
-This folder contains the Discord Activity control panel for OmniBot.
+This folder contains the Muxivo DS Activity control panel for Muxivo Discord.
 
 The client supports English and Russian locales. Users can switch language next
 to the theme control in both public and panel headers. The preference is stored
@@ -34,7 +34,7 @@ AI moderation is planned as a future module. It should not be documented as a co
 
 ## Access Model
 
-Activity access is not the same thing as raw Discord server roles. Discord roles are synchronized into OmniBot and then mapped to Activity access roles.
+Activity access is not the same thing as raw Discord server roles. Discord roles are synchronized into Muxivo Discord and then mapped to Activity access roles.
 
 Built-in Activity roles:
 
@@ -60,7 +60,7 @@ Creator Alerts visibility:
 
 ## Developer Portal Setup
 
-1. Open the Discord Developer Portal for the OmniBot application.
+1. Open the Discord Developer Portal for the Muxivo Discord application.
 2. Enable Activities for the app.
 3. Add the Activity URL Mapping that points to the public HTTPS URL serving this FastAPI app.
 4. Keep the application as a confidential client for this deployment. Do not enable Public Client.
@@ -117,11 +117,11 @@ YOUTUBE_API_KEY=your_youtube_api_key
 
 The current production services are:
 
-- `omnibot-bot`;
-- `omnibot-activity`;
+- `muxivo-discord-bot`;
+- `muxivo-discord-activity`;
 - proxy service when Discord traffic must be routed.
 
-`omnibot-bot` and `omnibot-activity` should start after the proxy when Discord access depends on it.
+`muxivo-discord-bot` and `muxivo-discord-activity` should start after the proxy when Discord access depends on it.
 
 ## Frontend Safety Notes
 

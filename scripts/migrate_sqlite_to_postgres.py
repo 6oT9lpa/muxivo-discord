@@ -65,7 +65,7 @@ async def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Migrate OmniBot data from SQLite to PostgreSQL.")
+    parser = argparse.ArgumentParser(description="Migrate Muxivo Discord data from SQLite to PostgreSQL.")
     parser.add_argument("--sqlite", default="data/nexsusguard.db", help="Path to source SQLite database.")
     parser.add_argument("--postgres", required=True, help="Target PostgreSQL URL.")
     parser.add_argument("--truncate", action="store_true", help="Delete target table data before copy.")

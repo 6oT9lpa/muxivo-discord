@@ -57,7 +57,7 @@ class LabelingCog(commands.Cog):
     async def trust_guild_autocomplete(self, _: disnake.ApplicationCommandInteraction, user_input: str) -> dict[str, str]:
         return self._guild_choices(user_input)
 
-    @labeling.sub_command(name="ai-metrics", description="Grant a trusted guild access to private AI moderator metrics")
+    @labeling.sub_command(name="ai-metrics", description="Grant a trusted guild access to private Muxivo Core metrics")
     async def ai_metrics(self, ctx: disnake.ApplicationCommandInteraction, guild_id: str, enabled: bool) -> None:
         if not await self._require_dm(ctx):
             return
@@ -70,7 +70,7 @@ class LabelingCog(commands.Cog):
         except PermissionError:
             await self._respond(ctx, "Metrics access denied", "Only the owner or a trusted guild ADMIN can change this setting.", error=True)
             return
-        await self._respond(ctx, "AI metrics updated", "Private AI moderator metrics access was updated.")
+        await self._respond(ctx, "AI metrics updated", "Private Muxivo Core metrics access was updated.")
 
     @ai_metrics.autocomplete("guild_id")
     async def ai_metrics_guild_autocomplete(self, _: disnake.ApplicationCommandInteraction, user_input: str) -> dict[str, str]:

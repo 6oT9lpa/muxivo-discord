@@ -78,7 +78,7 @@ const aiCapabilities = computed(() => [
 
     <RevealOnScroll tag="section" class="ai-story-band">
       <div class="ai-story-copy">
-        <span class="eyebrow">AI Moderator</span>
+        <span class="eyebrow">Muxivo Core</span>
         <h2>{{ $t("home.ai.heading") }}</h2>
         <p>{{ $t("home.ai.body") }}</p>
       </div>

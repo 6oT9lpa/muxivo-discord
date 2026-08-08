@@ -1,5 +1,6 @@
 import asyncio
 import sys
+from core.product_identity import PRODUCT_NAME
 from di import Bootstrap
 from infrastructure.logging import get_logger
 
@@ -7,7 +8,7 @@ logger = get_logger(__name__)
 
 
 async def main():
-    logger.info("Starting discord bot...")
+    logger.info("Starting %s...", PRODUCT_NAME)
     bootstrap = Bootstrap()
     await bootstrap.run()
 

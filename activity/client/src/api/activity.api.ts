@@ -31,28 +31,28 @@ import type {
 } from "../types/activity.types";
 
 export function getAiModeratorSettings(guildId: string, token: string) {
-  return apiRequest<AiModeratorSettings>(`/api/ai-moderator/settings?guild_id=${guildId}`, {}, token);
+  return apiRequest<AiModeratorSettings>(`/api/muxivo-core/settings?guild_id=${guildId}`, {}, token);
 }
 
 export function getAiModeratorMetrics(guildId: string, token: string) {
-  return apiRequest<AiModeratorMetrics>(`/api/ai-moderator/metrics?guild_id=${guildId}`, {}, token);
+  return apiRequest<AiModeratorMetrics>(`/api/muxivo-core/metrics?guild_id=${guildId}`, {}, token);
 }
 
 export function saveAiModeratorChannels(guildId: string, token: string, channelIds: string[]) {
   // Discord snowflakes exceed JavaScript's safe integer range; keep them as strings in JSON.
-  return apiRequest<AiModeratorSettings>("/api/ai-moderator/channels", { method: "PUT", body: JSON.stringify({ guild_id: guildId, channel_ids: channelIds }) }, token);
+  return apiRequest<AiModeratorSettings>("/api/muxivo-core/channels", { method: "PUT", body: JSON.stringify({ guild_id: guildId, channel_ids: channelIds }) }, token);
 }
 
 export function saveAiModeratorPolicy(guildId: string, token: string, policy: Record<string, unknown>) {
-  return apiRequest<AiModeratorSettings>("/api/ai-moderator/policy", { method: "PUT", body: JSON.stringify({ guild_id: guildId, policy }) }, token);
+  return apiRequest<AiModeratorSettings>("/api/muxivo-core/policy", { method: "PUT", body: JSON.stringify({ guild_id: guildId, policy }) }, token);
 }
 
 export function getMediaPolicy(guildId: string, token: string) {
-  return apiRequest<EffectiveMediaPolicy>(`/api/ai-moderator/media-policy?guild_id=${guildId}`, {}, token);
+  return apiRequest<EffectiveMediaPolicy>(`/api/muxivo-core/media-policy?guild_id=${guildId}`, {}, token);
 }
 
 export function saveMediaPolicy(guildId: string, token: string, expectedRevision: number, media: EffectiveMediaPolicy["media"]) {
-  return apiRequest<EffectiveMediaPolicy>("/api/ai-moderator/media-policy", {
+  return apiRequest<EffectiveMediaPolicy>("/api/muxivo-core/media-policy", {
     method: "PUT",
     body: JSON.stringify({ guild_id: guildId, expected_revision: expectedRevision, media }),
   }, token);
@@ -60,23 +60,23 @@ export function saveMediaPolicy(guildId: string, token: string, expectedRevision
 
 export function resetMediaPolicy(guildId: string, token: string, expectedRevision: number) {
   return apiRequest<EffectiveMediaPolicy>(
-    `/api/ai-moderator/media-policy?guild_id=${guildId}&expected_revision=${expectedRevision}`,
+    `/api/muxivo-core/media-policy?guild_id=${guildId}&expected_revision=${expectedRevision}`,
     { method: "DELETE" }, token,
   );
 }
 
 export function getAiModeratorReviews(guildId: string, token: string, status: "OPEN" | "RESOLVED", offset = 0) {
-  return apiRequest<AiModerationReviewPage>(`/api/ai-moderator/reviews?guild_id=${guildId}&status=${status}&limit=20&offset=${offset}`, {}, token);
+  return apiRequest<AiModerationReviewPage>(`/api/muxivo-core/reviews?guild_id=${guildId}&status=${status}&limit=20&offset=${offset}`, {}, token);
 }
 export function getAiModeratorReviewAudit(guildId: string, token: string, offset = 0) {
-  return apiRequest<AiModerationReviewAuditPage>(`/api/ai-moderator/reviews/audit?guild_id=${guildId}&limit=20&offset=${offset}`, {}, token);
+  return apiRequest<AiModerationReviewAuditPage>(`/api/muxivo-core/reviews/audit?guild_id=${guildId}&limit=20&offset=${offset}`, {}, token);
 }
 export function saveAiModeratorReview(guildId: string, token: string, item: AiModerationReviewItem) {
   const { id, guild_id, channel_id, message_id, user_id, labels, created_at, updated_at, resolved_at, resolved_by, ...payload } = item;
-  return apiRequest<AiModerationReviewItem>(`/api/ai-moderator/reviews/${id}`, { method: "PUT", body: JSON.stringify({ guild_id: guildId, ...payload }) }, token);
+  return apiRequest<AiModerationReviewItem>(`/api/muxivo-core/reviews/${id}`, { method: "PUT", body: JSON.stringify({ guild_id: guildId, ...payload }) }, token);
 }
 export function simulateAiModerator(guildId: string, token: string, messageText: string) {
-  return apiRequest<AiModerationSimulation>("/api/ai-moderator/simulate", { method: "POST", body: JSON.stringify({ guild_id: guildId, message_text: messageText }) }, token);
+  return apiRequest<AiModerationSimulation>("/api/muxivo-core/simulate", { method: "POST", body: JSON.stringify({ guild_id: guildId, message_text: messageText }) }, token);
 }
 
 export function exchangeDiscordCode(code: string) {

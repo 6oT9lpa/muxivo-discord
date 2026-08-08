@@ -8,7 +8,7 @@ from pydantic import ValidationError
 
 from application.dto.ai_moderation_request import AiModerationRequest
 from application.dto.media_attachment_request import MediaAttachmentRequest
-from infrastructure.ai.ai_moderator_api_client import AiModeratorApiClient
+from infrastructure.ai.muxivo_core_api_client import AiModeratorApiClient
 from presentation.cogs.ai_moderation_cog import AiModerationCog
 
 

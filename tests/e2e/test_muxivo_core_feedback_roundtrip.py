@@ -14,12 +14,12 @@ import psycopg
 import pytest
 
 from application.dto.ai_moderation_request import AiModerationRequest
-from infrastructure.ai.ai_moderator_api_client import AiModeratorApiClient
+from infrastructure.ai.muxivo_core_api_client import AiModeratorApiClient
 
 
 pytestmark = pytest.mark.skipif(
-    not (os.getenv("E2E_AI_MODERATOR_ROOT") and os.getenv("TEST_POSTGRESQL_URL")),
-    reason="E2E_AI_MODERATOR_ROOT and disposable TEST_POSTGRESQL_URL are required",
+    not (os.getenv("E2E_MUXIVO_CORE_ROOT") and os.getenv("TEST_POSTGRESQL_URL")),
+    reason="E2E_MUXIVO_CORE_ROOT and disposable TEST_POSTGRESQL_URL are required",
 )
 
 
@@ -30,22 +30,22 @@ def _free_port() -> int:
 
 
 @pytest.mark.asyncio
-async def test_omnibot_client_moderation_and_feedback_roundtrip() -> None:
-    ai_root = Path(os.environ["E2E_AI_MODERATOR_ROOT"]).resolve()
+async def test_muxivo_discord_client_moderation_and_feedback_roundtrip() -> None:
+    ai_root = Path(os.environ["E2E_MUXIVO_CORE_ROOT"]).resolve()
     port = _free_port()
     api_key = "e2e-internal-key-32-characters"
     environment = {
         **os.environ,
         "DATABASE_URL": os.environ["TEST_POSTGRESQL_URL"],
-        "AI_MODERATOR_INTERNAL_API_KEY": api_key,
-        "AI_MODERATOR_API_RUBERT_ENABLED": "false",
-        "AI_MODERATOR_API_RUBERT_REQUIRED": "false",
-        "AI_MODERATOR_MEDIA_ENABLED": "false",
-        "AI_MODERATOR_API_HOST": "127.0.0.1",
-        "AI_MODERATOR_API_PORT": str(port),
+        "MUXIVO_CORE_INTERNAL_API_KEY": api_key,
+        "MUXIVO_CORE_API_RUBERT_ENABLED": "false",
+        "MUXIVO_CORE_API_RUBERT_REQUIRED": "false",
+        "MUXIVO_CORE_MEDIA_ENABLED": "false",
+        "MUXIVO_CORE_API_HOST": "127.0.0.1",
+        "MUXIVO_CORE_API_PORT": str(port),
     }
     service_log = tempfile.TemporaryFile(mode="w+", encoding="utf-8")
-    service_python = os.getenv("E2E_AI_MODERATOR_PYTHON", sys.executable)
+    service_python = os.getenv("E2E_MUXIVO_CORE_PYTHON", sys.executable)
     process = subprocess.Popen(
         [service_python, "main_api.py"],
         cwd=ai_root,
@@ -65,18 +65,18 @@ async def test_omnibot_client_moderation_and_feedback_roundtrip() -> None:
                     pass
                 if process.poll() is not None:
                     service_log.seek(0)
-                    pytest.fail(f"AI Moderator exited during startup:\n{service_log.read()[-4_000:]}")
+                    pytest.fail(f"Muxivo Core exited during startup:\n{service_log.read()[-4_000:]}")
                 await asyncio.sleep(0.1)
             else:
                 service_log.seek(0)
                 pytest.fail(
-                    f"AI Moderator did not become ready; health={response.json()}:\n"
+                    f"Muxivo Core did not become ready; health={response.json()}:\n"
                     f"{service_log.read()[-4_000:]}"
                 )
             if response.json()["status"] != "ok":
                 service_log.seek(0)
                 pytest.fail(
-                    f"AI Moderator readiness is degraded; health={response.json()}:\n"
+                    f"Muxivo Core readiness is degraded; health={response.json()}:\n"
                     f"{service_log.read()[-12_000:]}"
                 )
 

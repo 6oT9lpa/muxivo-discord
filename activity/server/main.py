@@ -3,6 +3,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from activity.server.config import activity_server_config
+from core.product_identity import ACTIVITY_PRODUCT_NAME
 from activity.server.dependencies import initialize_activity_dependencies, shutdown_activity_dependencies
 from activity.server.middleware import configure_activity_middleware
 from activity.server.routers import include_activity_routers
@@ -13,8 +14,8 @@ logger = get_logger(__name__)
 
 
 def create_app() -> FastAPI:
-    logger.info("Creating Omnibot Activity API application")
-    app = FastAPI(title="Omnibot Activity API")
+    logger.info("Creating %s API application", ACTIVITY_PRODUCT_NAME)
+    app = FastAPI(title=f"{ACTIVITY_PRODUCT_NAME} API")
     configure_activity_middleware(app)
 
     @app.on_event("startup")

@@ -33,6 +33,6 @@ class IntegrationsService:
                 "poll_interval_seconds": config.creator_alert_poll_interval_seconds,
                 "sources": sources,
             },
-            "ai_moderator": {"status": "configured", "endpoint": config.ai_moderator_api_url},
+            "muxivo_core": {"status": "configured", "endpoint": config.muxivo_core_api_url},
             "database": {"status": "configured", "detail": "PostgreSQL stores bot state and activity data."},
         }

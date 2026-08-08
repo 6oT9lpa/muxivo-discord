@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 
 from application.dto.ai_moderation_decision import AiModerationDecision
 from application.dto.ai_moderation_request import AiModerationRequest
-from infrastructure.ai.ai_moderator_api_client import AiModeratorApiClient
+from infrastructure.ai.muxivo_core_api_client import AiModeratorApiClient
 from infrastructure.logging import get_logger
 
 logger = get_logger(__name__)
@@ -22,7 +22,7 @@ class AiModerationQueue:
     async def start(self) -> None:
         if self._workers:
             return
-        self._workers = [asyncio.create_task(self._worker(index), name=f"ai-moderation-{index}") for index in range(self._worker_count)]
+        self._workers = [asyncio.create_task(self._worker(index), name=f"muxivo-coreation-{index}") for index in range(self._worker_count)]
         logger.info("AI moderation queue started workers=%s", self._worker_count)
 
     async def stop(self) -> None:

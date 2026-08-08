@@ -242,27 +242,27 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
 <template>
   <RevealOnScroll tag="section" class="panel-section module-intro">
     <div class="section-heading">
-      <span>{{ $t("module.ai-moderator") }}</span>
+      <span>{{ $t("module.muxivo-core") }}</span>
       <h2>{{ $t("ai.heading") }}</h2>
       <div><p>{{ $t("ai.description") }}</p></div>
     </div>
 
   </RevealOnScroll>
 
-  <RevealOnScroll tag="section" class="panel-section module-tabs-panel ai-moderator-tabs" :delay="35">
+  <RevealOnScroll tag="section" class="panel-section module-tabs-panel muxivo-core-tabs" :delay="35">
     <PanelTabNav v-model="activeTab" :tabs="tabs.map((tab) => ({ key: tab.key, label: $t(tab.labelKey) }))" :aria-label="$t('ai.settings')" />
   </RevealOnScroll>
 
   <RevealOnScroll tag="section" class="panel-section module-content-panel" :delay="60">
-    <div v-if="activeTab === 'channels'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy">
+    <div v-if="activeTab === 'channels'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy">
         <div>
-          <span class="ai-moderation-kicker">{{ $t("ai.channel_coverage") }}</span>
+          <span class="muxivo-coreation-kicker">{{ $t("ai.channel_coverage") }}</span>
           <h3>{{ $t("ai.moderated_channels") }}</h3>
           <p>{{ $t("ai.channels_help") }}</p>
         </div>
-        <span v-if="settings?.log_channel_id" class="ai-moderation-log-status"><Check :size="15" /> {{ $t("ai.log_connected") }}</span>
-        <span v-else class="ai-moderation-log-status muted">{{ $t("ai.set_log") }}</span>
+        <span v-if="settings?.log_channel_id" class="muxivo-coreation-log-status"><Check :size="15" /> {{ $t("ai.log_connected") }}</span>
+        <span v-else class="muxivo-coreation-log-status muted">{{ $t("ai.set_log") }}</span>
       </div>
       <div v-if="settings?.available_channels.length" class="ai-channel-grid">
         <label v-for="channel in settings.available_channels" :key="channel.id" class="ai-channel-card" :class="{ selected: selectedChannels.includes(channel.id) }">
@@ -276,10 +276,10 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="saveChannels">{{ $t("ai.save_channels") }}</button></div>
     </div>
 
-    <div v-else-if="activeTab === 'policy'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy">
+    <div v-else-if="activeTab === 'policy'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy">
         <div>
-          <span class="ai-moderation-kicker">{{ $t("ai.server_policy") }}</span>
+          <span class="muxivo-coreation-kicker">{{ $t("ai.server_policy") }}</span>
           <h3>{{ $t(settings?.is_default_policy ? "ai.default_policy" : "ai.custom_policy") }}</h3>
           <p>{{ $t(settings?.is_default_policy ? "ai.default_help" : "ai.custom_help") }}</p>
         </div>
@@ -297,9 +297,9 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.policy_saved'))">{{ $t("ai.save_policy") }}</button></div>
     </div>
 
-    <div v-else-if="activeTab === 'media'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy">
-        <div><span class="ai-moderation-kicker">OCR / detector policy</span><h3>Media moderation</h3><p>Guild policy is stored separately from the AI-Moderator model runtime.</p></div>
+    <div v-else-if="activeTab === 'media'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy">
+        <div><span class="muxivo-coreation-kicker">OCR / detector policy</span><h3>Media moderation</h3><p>Guild policy is stored separately from the Muxivo Core model runtime.</p></div>
         <div v-if="activity.mediaPolicy"><strong>{{ activity.mediaPolicy.source }}</strong><br /><small>{{ activity.mediaPolicy.defaults_version }} · revision {{ activity.mediaPolicy.revision }}</small></div>
       </div>
       <div v-if="activity.mediaPolicy" class="ai-policy-summary">
@@ -345,24 +345,24 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       </template>
     </div>
 
-    <div v-else-if="activeTab === 'blacklist'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">{{ $t("ai.word_filter") }}</span><h3>{{ $t("ai.blocked_words") }}</h3><p>{{ $t("ai.blocked_help") }}</p></div></div>
+    <div v-else-if="activeTab === 'blacklist'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t("ai.word_filter") }}</span><h3>{{ $t("ai.blocked_words") }}</h3><p>{{ $t("ai.blocked_help") }}</p></div></div>
       <div class="ai-token-input"><input v-model="blacklistDraft" maxlength="253" :placeholder="$t('ai.add_word')" @keyup.enter.prevent="addBlacklistWords" /><button class="ghost-button" type="button" @click="addBlacklistWords"><Plus :size="16" /> {{ $t("ai.add") }}</button></div>
       <div v-if="moderationPolicy.blacklist_words.length" class="ai-token-list"><span v-for="word in moderationPolicy.blacklist_words" :key="word" class="ai-token">{{ word }}<button type="button" :aria-label="$t('ai.remove_value', { value: word })" @click="moderationPolicy.blacklist_words = removeValue(moderationPolicy.blacklist_words, word)"><Trash2 :size="14" /></button></span></div>
       <div v-else class="ai-empty-state"><ShieldCheck :size="22" /><span>{{ $t("ai.no_blocked") }}</span></div>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.blocked_saved'))">{{ $t("ai.save_blocked") }}</button></div>
     </div>
 
-    <div v-else-if="activeTab === 'domains'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">{{ $t("ai.link_rules") }}</span><h3>{{ $t("ai.allowed_domains") }}</h3><p>{{ $t("ai.domains_help") }}</p></div></div>
+    <div v-else-if="activeTab === 'domains'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t("ai.link_rules") }}</span><h3>{{ $t("ai.allowed_domains") }}</h3><p>{{ $t("ai.domains_help") }}</p></div></div>
       <div class="ai-token-input"><input v-model="domainDraft" maxlength="253" placeholder="example.com" @keyup.enter.prevent="addDomains" /><button class="ghost-button" type="button" @click="addDomains"><Plus :size="16" /> {{ $t("ai.add") }}</button></div>
       <div v-if="moderationPolicy.allowed_domains.length" class="ai-token-list"><span v-for="domain in moderationPolicy.allowed_domains" :key="domain" class="ai-token">{{ domain }}<button type="button" :aria-label="$t('ai.remove_value', { value: domain })" @click="moderationPolicy.allowed_domains = removeValue(moderationPolicy.allowed_domains, domain)"><Trash2 :size="14" /></button></span></div>
       <div v-else class="ai-empty-state"><Hash :size="22" /><span>{{ $t("ai.all_links_review") }}</span></div>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.domains_saved'))">{{ $t("ai.save_domains") }}</button></div>
     </div>
 
-    <div v-else-if="activeTab === 'exceptions'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">{{ $t('ai.exclusions.eyebrow') }}</span><h3>{{ $t('ai.exclusions.heading') }}</h3><p>{{ $t('ai.exclusions.description') }}</p></div></div>
+    <div v-else-if="activeTab === 'exceptions'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t('ai.exclusions.eyebrow') }}</span><h3>{{ $t('ai.exclusions.heading') }}</h3><p>{{ $t('ai.exclusions.description') }}</p></div></div>
       <div class="ai-exclusion-switch-grid">
         <article class="ai-exclusion-switch-card"><div><strong>{{ $t('ai.exclusions.exclude_bots') }}</strong><p>{{ $t('ai.exclusions.exclude_bots_help') }}</p></div><button class="ai-switch" type="button" role="switch" :aria-checked="moderationPolicy.exclude_bots" :aria-label="$t('ai.exclusions.exclude_bots')" :class="{ active: moderationPolicy.exclude_bots }" @click="moderationPolicy.exclude_bots = !moderationPolicy.exclude_bots"><span /></button></article>
         <article class="ai-exclusion-switch-card"><div><strong>{{ $t('ai.exclusions.escalation') }}</strong><p>{{ $t('ai.exclusions.escalation_help') }}</p></div><button class="ai-switch" type="button" role="switch" :aria-checked="moderationPolicy.escalation_enabled" :aria-label="$t('ai.exclusions.escalation')" :class="{ active: moderationPolicy.escalation_enabled }" @click="moderationPolicy.escalation_enabled = !moderationPolicy.escalation_enabled"><span /></button></article>
@@ -372,28 +372,28 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.exclusions.saved'))">{{ $t('ai.exclusions.save') }}</button></div>
     </div>
 
-    <div v-else-if="activeTab === 'actions'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">{{ $t("ai.action_boundaries") }}</span><h3>{{ $t("ai.action_heading") }}</h3><p>{{ $t("ai.action_help") }}</p></div></div>
+    <div v-else-if="activeTab === 'actions'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t("ai.action_boundaries") }}</span><h3>{{ $t("ai.action_heading") }}</h3><p>{{ $t("ai.action_help") }}</p></div></div>
       <div class="ai-rule-list">
         <article v-for="label in labelDefinitions" :key="label.key" class="ai-rule-card"><div><strong>{{ $t(label.titleKey) }}</strong><span>{{ $t(label.descriptionKey) }}</span></div><label><span>{{ $t("ai.at_least") }}</span><select :value="policyFor(label.key).min_action" @change="setMinimumAction(label.key, ($event.target as HTMLSelectElement).value as AiModerationAction)"><option v-for="action in actionOptions" :key="action.value" :value="action.value">{{ $t(action.labelKey) }}</option></select></label><label><span>{{ $t("ai.at_most") }}</span><select :value="policyFor(label.key).max_action" @change="setMaximumAction(label.key, ($event.target as HTMLSelectElement).value as AiModerationAction)"><option v-for="action in actionOptions" :key="action.value" :value="action.value">{{ $t(action.labelKey) }}</option></select></label></article>
       </div>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.actions_saved'))">{{ $t("ai.save_actions") }}</button></div>
     </div>
 
-    <div v-else-if="activeTab === 'risk'" class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">{{ $t("ai.sensitivity") }}</span><h3>{{ $t("ai.risk_heading") }}</h3><p>{{ $t("ai.risk_help") }}</p></div></div>
+    <div v-else-if="activeTab === 'risk'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t("ai.sensitivity") }}</span><h3>{{ $t("ai.risk_heading") }}</h3><p>{{ $t("ai.risk_help") }}</p></div></div>
       <div class="ai-risk-list">
         <label v-for="label in labelDefinitions" :key="label.key" class="ai-risk-card"><span><strong>{{ $t(label.titleKey) }}</strong><small>{{ $t(label.descriptionKey) }}</small></span><input v-model.number="policyFor(label.key).risk_threshold" type="range" min="0" max="100" step="1" /><output>{{ policyFor(label.key).risk_threshold }}</output></label>
       </div>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.risk_saved'))">{{ $t("ai.save_risk") }}</button></div>
     </div>
 
-    <div v-else class="ai-moderation-workspace">
-      <div class="ai-moderation-section-copy"><div><span class="ai-moderation-kicker">{{ $t("ai.metrics_eyebrow") }}</span><h3>{{ $t("ai.metrics_heading") }}</h3><p>{{ $t("ai.metrics_help") }}</p></div><button class="ghost-button" type="button" @click="loadMetrics">{{ $t("common.refresh") }}</button></div>
+    <div v-else class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t("ai.metrics_eyebrow") }}</span><h3>{{ $t("ai.metrics_heading") }}</h3><p>{{ $t("ai.metrics_help") }}</p></div><button class="ghost-button" type="button" @click="loadMetrics">{{ $t("common.refresh") }}</button></div>
       <div v-if="activity.aiModeratorMetrics" class="ai-policy-summary"><article><strong>{{ activity.aiModeratorMetrics.would_delete }}</strong><span>{{ $t("ai.metrics_would_delete") }}</span></article><article><strong>{{ activity.aiModeratorMetrics.review_count }}</strong><span>{{ $t("ai.metrics_sent_to_review") }}</span></article><article><strong>{{ activity.aiModeratorMetrics.average_latency_ms }} ms</strong><span>{{ $t("ai.metrics_average_latency") }}</span></article><article><strong>{{ activity.aiModeratorMetrics.safe_false_positive_rate === null ? '—' : `${(activity.aiModeratorMetrics.safe_false_positive_rate * 100).toFixed(1)}%` }}</strong><span>{{ $t("ai.metrics_safe_false_positives") }}</span></article></div>
       <div v-if="activity.aiModeratorMetrics" class="settings-list"><article><strong>{{ $t("ai.metrics_confused_classes") }}</strong><span>{{ activity.aiModeratorMetrics.confused_classes.map((item) => `${item.name}: ${item.count}`).join(', ') || $t("ai.metrics_no_corrections") }}</span></article><article><strong>{{ $t("ai.metrics_noisy_rules") }}</strong><span>{{ activity.aiModeratorMetrics.noisy_rules.map((item) => `${item.name}: ${item.count}`).join(', ') || $t("ai.metrics_no_events") }}</span></article><article><strong>{{ $t("ai.metrics_correction_speed") }}</strong><span>{{ activity.aiModeratorMetrics.moderator_correction_seconds === null ? '—' : $t("ai.metrics_seconds", { value: activity.aiModeratorMetrics.moderator_correction_seconds }) }}</span></article></div>
     </div>
 
-    <p v-if="status" class="ai-moderation-status" role="status">{{ status }}</p>
+    <p v-if="status" class="muxivo-coreation-status" role="status">{{ status }}</p>
   </RevealOnScroll>
 </template>

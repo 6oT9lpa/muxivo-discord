@@ -5,7 +5,7 @@ MODULE_ORDER = (
     "role-panels",
     "creator-alerts",
     "dev-blog",
-    "ai-moderator",
+    "muxivo-core",
     "logs",
     "server-stats",
     "voice-rooms",
@@ -28,7 +28,7 @@ ACCESS_ROLE_CONFIGURABLE_MODULES = (
     "role-panels",
     "creator-alerts",
     "dev-blog",
-    "ai-moderator",
+    "muxivo-core",
     "logs",
     "bot-settings",
 )
@@ -58,7 +58,7 @@ BUILTIN_ACCESS_ROLES: tuple[dict[str, object], ...] = (
     {
         "slug": "moderator",
         "name": "Moderator",
-        "modules": modules_with_defaults({"ai-moderator": "view", "logs": "view"}),
+        "modules": modules_with_defaults({"muxivo-core": "view", "logs": "view"}),
     },
     {
         "slug": "administrator",

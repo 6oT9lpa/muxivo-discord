@@ -5,7 +5,7 @@ import ru from "./locales/ru.json";
 export type Locale = "en" | "ru";
 export type TranslationParams = Record<string, string | number>;
 
-const STORAGE_KEY = "omnibot.activity.locale";
+const STORAGE_KEY = "muxivo-discord.activity.locale";
 const dictionaries: Record<Locale, Record<string, string>> = { en, ru };
 const missingKeys = new Set<string>();
 

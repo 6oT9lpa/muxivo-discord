@@ -156,7 +156,7 @@ class VoiceActionSelect(disnake.ui.StringSelect):
 
         room = await self.service._repo.get(channel.id)
         if not room:
-            await inter.response.send_message("This is not an OmniBot dynamic voice room.", ephemeral=True)
+            await inter.response.send_message("This is not an Muxivo Discord dynamic voice room.", ephemeral=True)
             logger.debug("Voice action rejected because room metadata is missing channel_id=%s", channel.id)
             return None
 

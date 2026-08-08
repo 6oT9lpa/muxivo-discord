@@ -40,7 +40,7 @@ async def main() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Normalize legacy PostgreSQL boolean flags to OmniBot numeric flags.")
+    parser = argparse.ArgumentParser(description="Normalize legacy PostgreSQL boolean flags to Muxivo Discord numeric flags.")
     parser.add_argument("--postgres", required=True, help="PostgreSQL URL.")
     return parser.parse_args()
 

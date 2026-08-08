@@ -27,7 +27,7 @@ function signalName(name: string) {
   const keys: Record<string, string> = {
     "Bot latency": "health.bot_latency",
     PostgreSQL: "health.postgresql",
-    "AI Moderator": "health.ai_moderator",
+    "Muxivo Core": "health.muxivo_core",
     "AI Classifier": "health.ai_classifier",
     "Stream platform polling": "health.stream_polling",
     "Stream Checker": "health.stream_checker",

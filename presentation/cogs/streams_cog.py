@@ -134,7 +134,7 @@ class StreamsCog(commands.Cog):
         ]
         if configured_user_sources or configured_matching_sources:
             logger.info(
-                "Skipping Discord activity fallback because configured source exists guild_id=%s user_id=%s sources=%s reason=%s",
+                "Skipping Muxivo DS Activity fallback because configured source exists guild_id=%s user_id=%s sources=%s reason=%s",
                 member.guild.id,
                 member.id,
                 [source.id for source in configured_user_sources or configured_matching_sources],
@@ -151,7 +151,7 @@ class StreamsCog(commands.Cog):
             return
         if event.event_id in self._fallback_event_ids or (source and source.last_event_id == event.event_id):
             logger.info(
-                "Discord activity fallback already announced guild_id=%s user_id=%s event_id=%s reason=%s",
+                "Muxivo DS Activity fallback already announced guild_id=%s user_id=%s event_id=%s reason=%s",
                 member.guild.id,
                 member.id,
                 event.event_id,
@@ -398,7 +398,7 @@ class StreamsCog(commands.Cog):
             components=self._stream_link_components("Watch", event.url),
             allowed_mentions=disnake.AllowedMentions(roles=True, users=False),
         )
-        logger.info("Published Discord activity fallback stream alert guild_id=%s user_id=%s", guild.id, user_id)
+        logger.info("Published Muxivo DS Activity fallback stream alert guild_id=%s user_id=%s", guild.id, user_id)
 
     def _stream_link_components(self, label: str, url: str) -> list[disnake.ui.Button]:
         if not url.startswith(("http://", "https://")):

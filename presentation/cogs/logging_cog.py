@@ -33,7 +33,7 @@ class LoggingCog(commands.Cog):
         self._recent_message_limit = 5_000
 
     def register_bot_message_deletion(self, message_id: int) -> None:
-        """Mark a deletion initiated by OmniBot for the next gateway event."""
+        """Mark a deletion initiated by Muxivo Discord for the next gateway event."""
         self._bot_deleted_message_ids.add(message_id)
 
     def cog_load(self):

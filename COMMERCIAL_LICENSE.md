@@ -2,7 +2,7 @@
 
 Copyright (c) 2026 OmniDev Corp. All rights reserved.
 
-These terms are a baseline commercial license template for paid OmniBot
+These terms are a baseline commercial license template for paid Muxivo Discord
 customers. They apply only when the copyright holder grants a written
 commercial license, invoice, order form, contract, or other written permission
 that references this file or clearly grants commercial rights.
@@ -11,15 +11,15 @@ that references this file or clearly grants commercial rights.
 
 After purchase and subject to the paid agreement, the customer receives a
 non-exclusive, non-transferable license to use, run, modify, and integrate
-OmniBot for the licensed server, project, organization, or deployment scope.
+Muxivo Discord for the licensed server, project, organization, or deployment scope.
 
 ## 2. Permitted Use
 
 Unless the paid agreement says otherwise, the customer may:
 
-- run OmniBot in private, internal, production, or hosted environments;
-- modify OmniBot for their own licensed use;
-- integrate OmniBot with Discord infrastructure, dashboards, AI Moderator,
+- run Muxivo Discord in private, internal, production, or hosted environments;
+- modify Muxivo Discord for their own licensed use;
+- integrate Muxivo Discord with Discord infrastructure, dashboards, Muxivo Core,
   proxy services, databases, and related systems;
 - create private forks and private derivative works for the licensed scope.
 

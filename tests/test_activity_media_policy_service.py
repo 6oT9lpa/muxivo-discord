@@ -26,7 +26,7 @@ class _ClientStub:
 
     async def get_media_policy(self, _guild_id: int) -> dict[str, object]:
         if self.unavailable:
-            request = httpx.Request("GET", "http://ai-moderator/policies/media")
+            request = httpx.Request("GET", "http://muxivo-core/policies/media")
             raise httpx.ConnectError("offline", request=request)
         if self.reset:
             return {"source": "YAML_DEFAULT", "revision": 0, "media": {}}
@@ -34,7 +34,7 @@ class _ClientStub:
 
     async def save_media_policy(self, **_kwargs: object) -> dict[str, object]:
         if self.conflict:
-            request = httpx.Request("PUT", "http://ai-moderator/policies/media")
+            request = httpx.Request("PUT", "http://muxivo-core/policies/media")
             response = httpx.Response(409, request=request)
             raise httpx.HTTPStatusError("conflict", request=request, response=response)
         self.saved = True

@@ -14,8 +14,8 @@ logger = get_logger(__name__)
 class GeneralCog(commands.Cog):
     _COMMANDS: tuple[dict[str, object], ...] = (
         {"section": "Основное", "command": "/help", "description": "Показать актуальную карту команд и модулей"},
-        {"section": "Основное", "command": "/ping", "description": "Проверить задержку OmniBot"},
-        {"section": "Activity", "command": "Discord Activity", "description": "Панель управления: Dashboard, роли доступа, настройки, логи, Dev Blog, Creator Alerts"},
+        {"section": "Основное", "command": "/ping", "description": "Проверить задержку Muxivo Discord"},
+        {"section": "Activity", "command": "Muxivo DS Activity", "description": "Панель управления: Dashboard, роли доступа, настройки, логи, Dev Blog, Creator Alerts"},
         {"section": "Статистика", "command": "/stats server", "description": "Статистика сервера за 7 или 30 дней"},
         {"section": "Статистика", "command": "/stats user", "description": "Статистика участника, включая активность и наказания"},
         {"section": "Статистика", "command": "/stats channels", "description": "Самые активные каналы за неделю"},
@@ -64,18 +64,18 @@ class GeneralCog(commands.Cog):
         {"section": "AI moderation", "command": "/set ai-channel", "description": "Добавить текстовый канал в локальную AI-модерацию", "permission": "administrator"},
         {"section": "AI moderation", "command": "/list ai-channel", "description": "Показать каналы, отслеживаемые AI", "permission": "administrator"},
         {"section": "AI moderation", "command": "/ai-policy label|blacklist|domains", "description": "Настроить лимиты действий, риск, blacklist и домены", "permission": "administrator"},
-        {"section": "AI moderation", "command": "Activity -> AI Moderator", "description": "Вкладка с каналами, политиками и безопасными настройками", "permission": "administrator"},
+        {"section": "AI moderation", "command": "Activity -> Muxivo Core", "description": "Вкладка с каналами, политиками и безопасными настройками", "permission": "administrator"},
     )
 
     def __init__(self, bot: commands.Bot):
         self._bot = bot
         logger.info("GeneralCog initialized")
 
-    @commands.slash_command(name="ping", description="Проверить задержку OmniBot")
+    @commands.slash_command(name="ping", description="Проверить задержку Muxivo Discord")
     async def ping(self, ctx: disnake.ApplicationCommandInteraction) -> None:
         latency_ms = round(self._bot.latency * 1000)
         embed = disnake.Embed(
-            title="OmniBot online",
+            title="Muxivo Discord online",
             description=f"Gateway latency: **{latency_ms} ms**",
             color=disnake.Color.green(),
         )
@@ -88,7 +88,7 @@ class GeneralCog(commands.Cog):
             latency_ms,
         )
 
-    @commands.slash_command(name="help", description="Показать доступные команды OmniBot")
+    @commands.slash_command(name="help", description="Показать доступные команды Muxivo Discord")
     async def help(self, ctx: disnake.ApplicationCommandInteraction) -> None:
         commands_by_section = self.get_available_commands_by_section(ctx.author)
         embed = self._build_help_embed(ctx, commands_by_section)
@@ -128,7 +128,7 @@ class GeneralCog(commands.Cog):
     ) -> disnake.Embed:
         guild_name = ctx.guild.name if ctx.guild else "Discord"
         embed = disnake.Embed(
-            title="OmniBot command center",
+            title="Muxivo Discord command center",
             description=(
                 f"Команды и панели, доступные для **{ctx.author.display_name}** на сервере **{guild_name}**.\n"
                 "Список учитывает ваши Discord-права. Доступ к Activity вкладкам дополнительно контролируется Activity RBAC."

@@ -1,5 +1,5 @@
 param(
-    [string]$Archive = (Join-Path $env:TEMP 'omnibot-release.tar.gz')
+    [string]$Archive = (Join-Path $env:TEMP 'muxivo-discord-release.tar.gz')
 )
 
 $ErrorActionPreference = 'Stop'

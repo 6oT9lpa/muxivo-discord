@@ -23,17 +23,17 @@ jobs:
           --health-retries 10
     env:
       TEST_POSTGRESQL_URL: postgresql://postgres:postgres@127.0.0.1:5432/moderation_e2e
-      E2E_AI_MODERATOR_ROOT: ${{ github.workspace }}/AI-Moderator
+      E2E_MUXIVO_CORE_ROOT: ${{ github.workspace }}/Muxivo Core
     steps:
-      - name: Check out OmniBot
+      - name: Check out Muxivo Discord
         uses: actions/checkout@v4
         with:
           path: discord-bot
-      - name: Check out AI Moderator
+      - name: Check out Muxivo Core
         uses: actions/checkout@v4
         with:
-          repository: 6oT9lpa/AI-Moderation-Content
-          path: AI-Moderator
+          repository: 6oT9lpa/muxivo-core
+          path: Muxivo Core
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -42,8 +42,8 @@ jobs:
           python -m pip install alembic fastapi httpx psycopg pydantic
           pydantic-settings uvicorn PyYAML Pillow numpy SQLAlchemy pytest pytest-asyncio psutil
       - name: Run migration and atomicity integration tests
-        working-directory: AI-Moderator
+        working-directory: Muxivo Core
         run: python -m pytest tests/integration/test_dataset_transaction.py tests/integration/test_postgresql_media_policy_repository.py -q
-      - name: Run OmniBot to AI Moderator roundtrip
+      - name: Run Muxivo Discord to Muxivo Core roundtrip
         working-directory: discord-bot
-        run: python -m pytest tests/e2e/test_ai_moderator_feedback_roundtrip.py -q
+        run: python -m pytest tests/e2e/test_muxivo_core_feedback_roundtrip.py -q

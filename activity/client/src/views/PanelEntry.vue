@@ -113,7 +113,7 @@ watch(
     // Review is deliberately not an Activity-RBAC permission. It is exposed
     // only after the backend confirms the trusted Labeling access gate.
     if (activity.session && module === "ai-review" && !activity.aiModerator) {
-      await activity.loadModuleData("ai-moderator");
+      await activity.loadModuleData("muxivo-core");
     }
     if (activity.session && !canOpenActiveModule.value) {
       void router.replace("/no-access");
@@ -172,7 +172,7 @@ watch(
         <WelcomeModulePanel v-else-if="activeModule === 'welcome'" />
         <RolePanelsPanel v-else-if="activeModule === 'role-panels'" />
         <CreatorAlertsPanel v-else-if="activeModule === 'creator-alerts'" />
-        <AiModeratorPanel v-else-if="activeModule === 'ai-moderator'" />
+        <AiModeratorPanel v-else-if="activeModule === 'muxivo-core'" />
         <AiModerationReviewQueue v-else-if="activeModule === 'ai-review'" />
         <DevBlogPanel v-else-if="activeModule === 'dev-blog'" />
         <VoiceRoomsPanel v-else-if="activeModule === 'voice-rooms'" />

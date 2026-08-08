@@ -111,7 +111,7 @@ class VoiceCog(commands.Cog):
 
         room = await self._service._repo.get(channel.id)
         if not room:
-            await inter.response.send_message("Это не динамическая комната OmniBot.", ephemeral=True)
+            await inter.response.send_message("Это не динамическая комната Muxivo Discord.", ephemeral=True)
             logger.debug("/send rejected because room metadata is missing channel_id=%s", channel.id)
             return
 

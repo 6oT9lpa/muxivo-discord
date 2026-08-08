@@ -63,7 +63,7 @@ def creator_event():
         alert_kind=CreatorAlertKind.STREAM,
         event_id="evt-1",
         creator_name="Arnetik",
-        title="Building OmniBot",
+        title="Building Muxivo Discord",
         url="https://twitch.tv/arnetik",
         game="Minecraft",
     )
@@ -155,12 +155,12 @@ def test_streaming_activity_game_uses_discord_state_not_title():
     cog = StreamsCog.__new__(StreamsCog)
     activity = disnake.Streaming(
         name="Twitch",
-        details="Building OmniBot",
+        details="Building Muxivo Discord",
         state="Minecraft",
         url="https://www.twitch.tv/stepiks_",
     )
 
-    assert cog._stream_title(activity) == "Building OmniBot"
+    assert cog._stream_title(activity) == "Building Muxivo Discord"
     assert cog._stream_game(activity) == "Minecraft"
     assert cog._stream_url(activity) == "https://www.twitch.tv/stepiks_"
     assert cog._stream_thumbnail_url(activity).endswith("live_user_stepiks_-1280x720.jpg")
@@ -193,7 +193,7 @@ async def test_streaming_activity_scan_publishes_existing_status_once():
         activities = [
             disnake.Streaming(
                 name="Twitch",
-                details="Building OmniBot",
+                details="Building Muxivo Discord",
                 state="Minecraft",
                 url="https://www.twitch.tv/creator",
             )
@@ -220,7 +220,7 @@ async def test_streaming_activity_scan_publishes_existing_status_once():
     assert len(published) == 1
     assert published[0][0] == 100
     assert published[0][1] == 42
-    assert published[0][2].title == "Building OmniBot"
+    assert published[0][2].title == "Building Muxivo Discord"
     assert published[0][2].game == "Minecraft"
 
 
@@ -266,7 +266,7 @@ async def test_streaming_activity_fallback_skips_configured_matching_twitch_sour
         Member(),
         disnake.Streaming(
             name="Twitch",
-            details="Building OmniBot",
+            details="Building Muxivo Discord",
             state="Minecraft",
             url="https://www.twitch.tv/creator",
         ),
@@ -561,7 +561,7 @@ async def test_activity_creator_alert_save_publishes_live_embed(postgres_test_db
                 alert_kind=CreatorAlertKind.STREAM,
                 event_id="live-now",
                 creator_name="Creator",
-                title="Building OmniBot",
+                title="Building Muxivo Discord",
                 url=channel_url,
                 game="Minecraft",
                 thumbnail_url="https://static-cdn.jtvnw.net/previews-ttv/live_user_creator-1280x720.jpg",

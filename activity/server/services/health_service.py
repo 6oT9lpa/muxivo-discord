@@ -5,7 +5,7 @@ from activity.server.dependencies import get_db
 from activity.server.schemas.activity import ActivityHealthResponse, ActivityHealthSignal
 from activity.server.services.access_service import ActivityAccessService
 from activity.server.services.discord_service import DiscordService
-from activity.server.services.ai_moderator_health_probe import AiModeratorHealthProbe
+from activity.server.services.muxivo_core_health_probe import AiModeratorHealthProbe
 from infrastructure.config import get_config
 from infrastructure.logging import get_logger
 
@@ -18,9 +18,9 @@ class ActivityHealthService:
         self._access_service = ActivityAccessService()
         self._discord = DiscordService()
         config = get_config()
-        self._ai_moderator = AiModeratorHealthProbe(
-            config.ai_moderator_api_url,
-            config.ai_moderator_request_timeout_seconds,
+        self._muxivo_core = AiModeratorHealthProbe(
+            config.muxivo_core_api_url,
+            config.muxivo_core_request_timeout_seconds,
         )
 
     async def get_health(self, guild_id: str, access_token: str) -> ActivityHealthResponse:
@@ -29,7 +29,7 @@ class ActivityHealthService:
 
         discord_latency = await self._discord.measure_latency()
         database_latency = await self._measure_database_latency()
-        ai_latency = await self._ai_moderator.measure_latency()
+        ai_latency = await self._muxivo_core.measure_latency()
         poll_interval_seconds = get_config().creator_alert_poll_interval_seconds
 
         return ActivityHealthResponse(
@@ -49,7 +49,7 @@ class ActivityHealthService:
                     latency_ms=database_latency,
                 ),
                 ActivityHealthSignal(
-                    name="AI Moderator",
+                    name="Muxivo Core",
                     value=f"{ai_latency} ms" if ai_latency is not None else "Unavailable",
                     status="operational" if ai_latency is not None else "degraded",
                     latency_ms=ai_latency,

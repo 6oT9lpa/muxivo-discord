@@ -58,7 +58,7 @@ class DiscordMessageExportService:
             base_url=self.API_BASE,
             headers={
                 "Authorization": f"Bot {bot_token}",
-                "User-Agent": "OmniBot-DatasetExporter/1.0",
+                "User-Agent": "Muxivo Discord-DatasetExporter/1.0",
             },
             proxy=proxy_url,
             timeout=30.0,

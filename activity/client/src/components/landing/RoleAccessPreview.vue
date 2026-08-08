@@ -12,7 +12,7 @@ const roles = computed(() => [
   { id: "member" as const, name: t("about.access.role.member"), modules: ["dashboard", "welcome"] },
   { id: "creator" as const, name: t("about.access.role.creator"), modules: ["dashboard", "creator-alerts", "dev-blog"] },
   { id: "developer" as const, name: t("about.access.role.developer"), modules: ["dashboard", "dev-blog", "logs", "health"] },
-  { id: "admin" as const, name: t("about.access.role.admin"), modules: ["dashboard", "access", "ai-moderator", "logs", "health"] },
+  { id: "admin" as const, name: t("about.access.role.admin"), modules: ["dashboard", "access", "muxivo-core", "logs", "health"] },
 ]);
 
 const activeRole = computed(() => roles.value.find((role) => role.id === selectedRole.value) ?? roles.value[0]);

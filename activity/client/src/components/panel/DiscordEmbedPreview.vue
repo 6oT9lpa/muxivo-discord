@@ -44,7 +44,7 @@ function previewText(value: string) {
       <span v-else>{{ $t("welcome.thumbnail_area") }}</span>
     </div>
     <footer>
-      <span>{{ previewText(config.footer_text || "OmniBot Activity") }}</span>
+      <span>{{ previewText(config.footer_text || "Muxivo DS Activity") }}</span>
       <AuthenticatedImage
         v-if="config.footer_icon_url"
         class="preview-footer-icon"

@@ -39,11 +39,11 @@ class BotConfig(BaseSettings):
     twitch_client_secret: Optional[SecretStr] = None
     youtube_api_key: Optional[SecretStr] = None
 
-    ai_moderator_api_url: str = "http://127.0.0.1:8000"
-    ai_moderator_internal_api_key: Optional[SecretStr] = None
-    ai_moderator_queue_size: int = 500
-    ai_moderator_worker_count: int = 2
-    ai_moderator_request_timeout_seconds: float = 12.0
+    muxivo_core_api_url: str = "http://127.0.0.1:8000"
+    muxivo_core_internal_api_key: Optional[SecretStr] = None
+    muxivo_core_queue_size: int = 500
+    muxivo_core_worker_count: int = 2
+    muxivo_core_request_timeout_seconds: float = 12.0
 
     @field_validator('activity_rotation_interval_seconds')
     @classmethod
