@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from presentation.embeds.logging_embed import (
     VoiceLogEmbedBuilder,
     MessageLogEmbedBuilder,
+    MessageDeleteLogEmbedBuilder,
     MemberEventEmbedBuilder,
 )
 
@@ -88,6 +89,30 @@ def test_member_event_embed_build_leave():
     assert embed.title == "Member left: TestUser (ID: 123456789)"
     assert embed.color.value == 0xED4245
     assert any(field.name == "Event" and field.value == "member_leave" for field in embed.fields)
+
+
+def test_message_delete_embed_shows_deleted_attachment_instead_of_empty_message():
+    author = MockMember(123456789, "TestUser")
+    message = type("Message", (), {
+        "id": 44,
+        "author": author,
+        "content": "",
+        "attachments": [
+            type("Attachment", (), {
+                "filename": "casino.png",
+                "url": "https://cdn.discordapp.com/attachments/1/2/casino.png",
+                "content_type": "image/png",
+                "size": 2048,
+            })(),
+        ],
+    })()
+
+    embed = MessageDeleteLogEmbedBuilder.build_delete(message)
+
+    fields = {field.name: field.value for field in embed.fields}
+    assert "текст отсутствует" in fields["Содержание"]
+    assert "casino.png" in fields["Удалённые вложения"]
+    assert embed.image.url == "https://cdn.discordapp.com/attachments/1/2/casino.png"
 
 
 def test_member_event_embed_build_update():

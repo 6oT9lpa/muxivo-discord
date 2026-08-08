@@ -5,6 +5,9 @@ from zoneinfo import ZoneInfo
 import disnake
 
 from presentation.embeds import EmbedBuilder
+from presentation.embeds.deleted_message_attachment_presentation import (
+    DeletedMessageAttachmentPresenter,
+)
 
 
 def format_datetime(dt: datetime) -> str:
@@ -310,12 +313,23 @@ class MessageDeleteLogEmbedBuilder:
         else:
             builder.add_field("Удалил", "Неизвестно (возможно, бот)", inline=False)
 
-        content = message.content or "(пустое сообщение)"
+        attachment_presentation = DeletedMessageAttachmentPresenter.present(
+            getattr(message, "attachments", ())
+        )
+        content = message.content or (
+            "(текст отсутствует; удалённое вложение указано ниже)"
+            if attachment_presentation.field_value
+            else "(пустое сообщение)"
+        )
         builder.add_field(
             "Содержание",
             content[:1024] + ("…" if len(content) > 1024 else ""),
             inline=False,
         )
+        if attachment_presentation.field_value:
+            builder.add_field("Удалённые вложения", attachment_presentation.field_value, inline=False)
+        if attachment_presentation.preview_url:
+            builder.add_image(attachment_presentation.preview_url)
 
         if timestamp is None:
             timestamp = datetime.now(timezone.utc)
