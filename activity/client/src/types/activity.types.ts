@@ -179,6 +179,7 @@ export type AiModeratorSettings = {
   available_channels: DiscordChannel[];
   metrics_enabled: boolean;
   review_access: boolean;
+  ocr: { enabled: boolean; ready: boolean };
 };
 
 export type MediaFailureAction = "partial" | "reject";
@@ -273,6 +274,7 @@ export type AiModerationPolicy = {
   excluded_role_ids: string[];
   excluded_channel_ids: string[];
   exclude_bots: boolean;
+  ocr_enabled: boolean;
   test_mode: boolean;
   enforcement_mode: "SHADOW" | "LIMITED" | "ELEVATED";
   limited_min_confidence: number;

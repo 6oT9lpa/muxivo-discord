@@ -25,6 +25,10 @@ class AiModerationGuildPolicy(BaseModel):
     excluded_role_ids: tuple[int, ...] = Field(default=(), max_length=500)
     excluded_channel_ids: tuple[int, ...] = Field(default=(), max_length=500)
     exclude_bots: bool = True
+    # Image and GIF analysis is opt-in per guild.  Keeping it disabled by
+    # default preserves the historical text-only moderation behaviour until an
+    # administrator explicitly enables OCR in AI Moderator settings.
+    ocr_enabled: bool = False
     test_mode: bool = False
     enforcement_mode: AiModerationEnforcementMode = AiModerationEnforcementMode.SHADOW
     limited_min_confidence: float = Field(default=0.95, ge=0.0, le=1.0)

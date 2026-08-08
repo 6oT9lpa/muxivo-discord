@@ -13,6 +13,7 @@ def test_default_ai_moderation_policy_covers_moderated_labels() -> None:
     assert policy.labels["THREAT"].max_action == "TIMEOUT"
     assert policy.labels["FLOOD"].min_action == "TIMEOUT"
     assert policy.enforcement_mode == "SHADOW"
+    assert policy.ocr_enabled is False
     assert policy.blacklist_words == ()
     assert policy.allowed_domains == ()
 
@@ -25,6 +26,13 @@ def test_default_policy_is_merged_into_existing_guild_policy() -> None:
     assert policy.labels["TOXIC"].risk_threshold == 60
     assert policy.labels["PROFANITY"].max_action == "WARN"
     assert policy.labels["POLITICS_IRL"].min_action == "REVIEW"
+    assert policy.ocr_enabled is False
+
+
+def test_ocr_setting_is_preserved_for_a_guild_policy() -> None:
+    policy = merge_with_default_ai_moderation_policy(AiModerationGuildPolicy.model_validate({"ocr_enabled": True}))
+
+    assert policy.ocr_enabled is True
 
 
 def test_legacy_default_threat_rule_is_upgraded_to_timeout() -> None:

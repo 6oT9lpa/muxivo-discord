@@ -7,12 +7,12 @@ import { useActivityStore } from "../../stores/activity.store";
 import type { ActivityRolePurpose, AiModerationPolicy, ChannelPurpose } from "../../types/activity.types";
 import { t } from "../../i18n";
 
-type BotSettingsTab = "general" | "channels" | "roles" | "muxivo_core";
+type BotSettingsTab = "general" | "channels" | "roles" | "ai_moderator";
 
 const activity = useActivityStore();
 const activeTab = ref<BotSettingsTab>("general");
 const status = ref("");
-const tabs = computed<Array<{ key: BotSettingsTab; label: string }>>(() => ["general", "channels", "roles", "muxivo_core"].map((key) => ({ key: key as BotSettingsTab, label: t(`settings.${key}`) })));
+const tabs = computed<Array<{ key: BotSettingsTab; label: string }>>(() => ["general", "channels", "roles", "ai_moderator"].map((key) => ({ key: key as BotSettingsTab, label: t(`settings.${key}`) })));
 const channelPurposeKeys: ChannelPurpose[] = ["welcome", "member_log", "mod_log", "message_log", "channel_log", "stream_announce", "dev_blog", "ai_moderation_log"];
 const channelPurposes = computed(() => channelPurposeKeys.map((key) => ({ key, label: t(`settings.channel.${key}`) })));
 const rolePurposeKeys: ActivityRolePurpose[] = ["activity_admin", "activity_streamer", "activity_developer", "ping_stream", "ping_dev"];
@@ -24,11 +24,12 @@ const runtimeRows = computed(() => [
   [t("settings.message_retention"), t("settings.days", { value: activity.botSettings?.retention?.message_log_retention_days || "-" })],
   [t("settings.punishment_retention"), t("settings.days", { value: activity.botSettings?.retention?.punishment_retention_days || "-" })],
 ]);
-const enforcement = reactive<Pick<AiModerationPolicy, "enforcement_mode" | "limited_min_confidence" | "beta_enforcement_acknowledged" | "allow_automated_timeout" | "allow_automated_kick" | "allow_automated_ban" | "test_mode">>({
+const enforcement = reactive<Pick<AiModerationPolicy, "enforcement_mode" | "limited_min_confidence" | "beta_enforcement_acknowledged" | "allow_automated_timeout" | "allow_automated_kick" | "allow_automated_ban" | "test_mode" | "ocr_enabled">>({
   enforcement_mode: "SHADOW", limited_min_confidence: 0.95, beta_enforcement_acknowledged: false,
-  allow_automated_timeout: false, allow_automated_kick: false, allow_automated_ban: false, test_mode: false,
+  allow_automated_timeout: false, allow_automated_kick: false, allow_automated_ban: false, test_mode: false, ocr_enabled: false,
 });
 const elevatedEnabled = computed(() => enforcement.enforcement_mode === "ELEVATED" && enforcement.beta_enforcement_acknowledged);
+const ocrReady = computed(() => activity.aiModerator?.ocr?.ready === true);
 
 // The beta controls edit the same server policy as the AI module, so rehydrate
 // them whenever the asynchronous settings request finishes or is refreshed.
@@ -38,7 +39,7 @@ watch(() => activity.aiModerator?.policy, (policy) => {
     enforcement_mode: policy.enforcement_mode ?? "SHADOW", limited_min_confidence: policy.limited_min_confidence ?? 0.95,
     beta_enforcement_acknowledged: policy.beta_enforcement_acknowledged ?? false, allow_automated_timeout: policy.allow_automated_timeout ?? false,
     allow_automated_kick: policy.allow_automated_kick ?? false, allow_automated_ban: policy.allow_automated_ban ?? false,
-    test_mode: policy.test_mode ?? false,
+    test_mode: policy.test_mode ?? false, ocr_enabled: policy.ocr_enabled ?? false,
   });
 }, { immediate: true });
 
@@ -70,6 +71,8 @@ async function saveEnforcement() {
       <div class="ai-beta-warning" role="alert"><ShieldAlert :size="28" /><div><span>{{ $t("settings.ai_beta_eyebrow") }}</span><h3>{{ $t("settings.ai_beta_warning_title") }}</h3><p>{{ $t("settings.ai_beta_warning_text") }}</p></div></div>
       <section class="ai-beta-card"><header><div><span class="muxivo-coreation-kicker">{{ $t("settings.ai_beta_controls") }}</span><h3>{{ $t("settings.ai_beta_heading") }}</h3><p>{{ $t("settings.ai_beta_help") }}</p></div></header><div class="ai-beta-fields"><label><span>{{ $t("settings.ai_mode") }}</span><select v-model="enforcement.enforcement_mode"><option value="SHADOW">{{ $t("settings.ai_mode_shadow") }}</option><option value="LIMITED">{{ $t("settings.ai_mode_limited") }}</option><option value="ELEVATED">{{ $t("settings.ai_mode_elevated") }}</option></select></label><label><span>{{ $t("settings.ai_confidence") }}</span><input v-model.number="enforcement.limited_min_confidence" type="number" min="0.8" max="1" step="0.01" /></label></div></section>
       <section class="ai-beta-card"><header><div><span class="muxivo-coreation-kicker">{{ $t("settings.ai_beta_permissions") }}</span><h3>{{ $t("settings.ai_beta_permissions_title") }}</h3><p>{{ $t("settings.ai_beta_permissions_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>{{ $t("settings.ai_acknowledge") }}</strong><small>{{ $t("settings.ai_acknowledge_help") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.beta_enforcement_acknowledged }" role="switch" :aria-checked="enforcement.beta_enforcement_acknowledged" @click="enforcement.beta_enforcement_acknowledged = !enforcement.beta_enforcement_acknowledged"><i /></button></label><label v-for="item in [['allow_automated_timeout', 'settings.ai_timeout'], ['allow_automated_kick', 'settings.ai_kick'], ['allow_automated_ban', 'settings.ai_ban']] as const" :key="item[0]" class="ai-beta-toggle" :class="{ disabled: !elevatedEnabled }"><span><strong>{{ $t(item[1]) }}</strong><small>{{ $t('settings.ai_requires_elevated') }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement[item[0]] }" role="switch" :aria-checked="enforcement[item[0]]" :disabled="!elevatedEnabled" @click="enforcement[item[0]] = !enforcement[item[0]]"><i /></button></label></div></section>
+      <section class="ai-beta-card"><header><div><span class="muxivo-coreation-kicker">{{ $t("settings.ai_beta_permissions") }}</span><h3>{{ $t("settings.ai_beta_permissions_title") }}</h3><p>{{ $t("settings.ai_beta_permissions_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>{{ $t("settings.ai_acknowledge") }}</strong><small>{{ $t("settings.ai_acknowledge_help") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.beta_enforcement_acknowledged }" role="switch" :aria-checked="enforcement.beta_enforcement_acknowledged" @click="enforcement.beta_enforcement_acknowledged = !enforcement.beta_enforcement_acknowledged"><i /></button></label><label v-for="item in [['allow_automated_timeout', 'settings.ai_timeout'], ['allow_automated_kick', 'settings.ai_kick'], ['allow_automated_ban', 'settings.ai_ban']] as const" :key="item[0]" class="ai-beta-toggle" :class="{ disabled: !elevatedEnabled }"><span><strong>{{ $t(item[1]) }}</strong><small>{{ $t('settings.ai_requires_elevated') }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement[item[0]] }" role="switch" :aria-checked="enforcement[item[0]]" :disabled="!elevatedEnabled" @click="enforcement[item[0]] = !enforcement[item[0]]"><i /></button></label></div></section>
+      <section class="ai-beta-card"><header><div><span class="muxivo-coreation-kicker">{{ $t("settings.ocr_eyebrow") }}</span><h3>{{ $t("settings.ocr_heading") }}</h3><p>{{ $t("settings.ocr_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle" :class="{ disabled: !ocrReady }"><span><strong>{{ $t("settings.ocr_toggle") }}</strong><small>{{ ocrReady ? $t("settings.ocr_toggle_help") : $t("settings.ocr_unavailable") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.ocr_enabled }" role="switch" :aria-checked="enforcement.ocr_enabled" :disabled="!ocrReady" @click="enforcement.ocr_enabled = !enforcement.ocr_enabled"><i /></button></label></div></section>
         <section class="ai-beta-card"><header><div><span class="muxivo-coreation-kicker">{{ $t("settings.ai_test_mode") }}</span><h3>{{ $t("settings.ai_test_heading") }}</h3><p>{{ $t("settings.ai_test_help") }}</p></div></header><div class="ai-beta-toggle-list"><label class="ai-beta-toggle"><span><strong>{{ $t("settings.ai_test_toggle") }}</strong><small>{{ $t("settings.ai_test_toggle_help") }}</small></span><button type="button" class="ai-beta-switch" :class="{ 'is-on': enforcement.test_mode }" role="switch" :aria-checked="enforcement.test_mode" @click="enforcement.test_mode = !enforcement.test_mode"><i /></button></label></div></section>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="saveEnforcement">{{ $t("settings.ai_save") }}</button></div>
     </div>

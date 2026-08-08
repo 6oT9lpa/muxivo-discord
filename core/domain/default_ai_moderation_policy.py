@@ -103,6 +103,7 @@ def merge_with_default_ai_moderation_policy(policy: AiModerationGuildPolicy) -> 
         excluded_role_ids=policy.excluded_role_ids,
         excluded_channel_ids=policy.excluded_channel_ids,
         exclude_bots=policy.exclude_bots,
+        ocr_enabled=policy.ocr_enabled,
         test_mode=policy.test_mode,
         enforcement_mode=policy.enforcement_mode,
         limited_min_confidence=policy.limited_min_confidence,

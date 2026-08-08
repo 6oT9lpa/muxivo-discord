@@ -34,7 +34,7 @@ class AiModerationCog(commands.Cog):
         "KICK": "kick_members",
         "BAN": "ban_members",
     }
-    _SUPPORTED_IMAGE_CONTENT_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
+    _SUPPORTED_IMAGE_CONTENT_TYPES = frozenset({"image/gif", "image/jpeg", "image/png", "image/webp"})
 
     def __init__(self, bot: commands.Bot, settings_service: AiModerationSettingsService, channel_service: ChannelService, queue: AiModerationQueue, context_builder: UserModerationContextBuilder, punishment_repository: PunishmentRepositoryInterface, ai_repository: AiModerationRepositoryInterface | None = None) -> None:
         self._bot = bot
@@ -121,7 +121,7 @@ class AiModerationCog(commands.Cog):
         )
         recent_messages, recent_timestamps = await self._recent_author_messages(message)
         metadata = await self._reply_context(message)
-        media_attachments = self._media_attachments(message)
+        media_attachments = self._media_attachments(message) if policy.ocr_enabled else ()
         metadata["discord_attachment_count"] = len(message.attachments)
         return AiModerationRequest(
             guild_id=message.guild.id,

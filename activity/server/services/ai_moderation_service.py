@@ -50,7 +50,20 @@ class AiModerationService:
             "available_channels": await self._discord_service.list_channels(str(guild_id), "moderation"),
             "metrics_enabled": metrics_enabled,
             "review_access": await self.can_access_review_queue(guild_id, access_token),
+            "ocr": await self._ocr_runtime(),
         }
+
+    async def _ocr_runtime(self) -> dict[str, bool]:
+        """Expose only readiness flags; never forward Core internals to Activity."""
+        config = get_config()
+        try:
+            async with httpx.AsyncClient(timeout=config.muxivo_core_request_timeout_seconds, trust_env=False) as client:
+                response = await client.get(f"{config.muxivo_core_api_url.rstrip('/')}/health")
+            payload = response.json() if response.status_code == 200 else {}
+            return {"enabled": payload.get("ocr_status") != "disabled", "ready": payload.get("ocr_status") == "ready"}
+        except (httpx.HTTPError, ValueError):
+            logger.warning("Muxivo AI OCR readiness is unavailable")
+            return {"enabled": False, "ready": False}
 
     async def save_channels(self, payload: AiModerationChannelsPayload, access_token: str) -> dict[str, Any]:
         logger.info(
