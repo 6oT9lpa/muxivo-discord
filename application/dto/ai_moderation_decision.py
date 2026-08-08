@@ -18,4 +18,5 @@ class AiModerationDecision(BaseModel):
     labels: tuple[str, ...] = Field(max_length=14)
     rule_matches: tuple[str, ...] = Field(default=(), max_length=32)
     execution_plan: tuple[str, ...] = Field(max_length=8)
+    warnings: tuple[str, ...] = Field(default=(), max_length=8)
     dry_run: bool

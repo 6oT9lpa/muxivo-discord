@@ -26,6 +26,11 @@ from presentation.embeds.base import EmbedBuilder, DEFAULT_COLORS
 logger = get_logger(__name__)
 
 
+_MEDIA_ANALYSIS_WARNING_PREFIX = "media_"
+_MEDIA_ANALYSIS_UNAVAILABLE_TITLE = "Media analysis incomplete"
+_MEDIA_ANALYSIS_UNAVAILABLE_CLASSIFICATION = "Media unavailable — no content decision"
+
+
 class AiModerationCog(commands.Cog):
     """Connect Discord messages, moderation decisions and audit logging."""
     _HIGH_IMPACT_ACTIONS = frozenset({"TIMEOUT", "KICK", "BAN"})
@@ -592,8 +597,19 @@ class AiModerationCog(commands.Cog):
         action_icon, action_title, color = self._action_presentation(decision.action)
         proposed = decision.proposed_action or decision.action
         _, proposed_title, _ = self._action_presentation(proposed)
-        labels = ", ".join(label.replace("_", " ").title() for label in (decision.labels or (decision.primary_label,)))
+        media_analysis_unavailable = self._media_analysis_unavailable(request, decision)
+        if media_analysis_unavailable:
+            action_icon, action_title, color = (
+                "⚠️",
+                _MEDIA_ANALYSIS_UNAVAILABLE_TITLE,
+                DEFAULT_COLORS["warn"],
+            )
+            labels = _MEDIA_ANALYSIS_UNAVAILABLE_CLASSIFICATION
+        else:
+            labels = ", ".join(label.replace("_", " ").title() for label in (decision.labels or (decision.primary_label,)))
         execution_context = "Test mode — no Discord actions executed" if decision.dry_run else "Decision recorded"
+        if media_analysis_unavailable:
+            execution_context = f"{execution_context} — media unavailable"
         reply_text = request.metadata.get("reply_context_text")
         reply_author_id = request.metadata.get("reply_context_author_id")
         # Match the compact visual hierarchy used by the rest of Muxivo Discord's
@@ -654,6 +670,17 @@ class AiModerationCog(commands.Cog):
                 )
             return
         logger.error("AI moderation embed could not be delivered guild_id=%s message_id=%s", guild.id, request.message_id)
+
+    @staticmethod
+    def _media_analysis_unavailable(
+        request: AiModerationRequest,
+        decision: AiModerationDecision,
+    ) -> bool:
+        """Do not present an unscanned attachment as a safe content decision."""
+        return request.has_attachments and any(
+            warning.startswith(_MEDIA_ANALYSIS_WARNING_PREFIX)
+            for warning in decision.warnings
+        )
 
     async def _resolve_log_channels(
         self,

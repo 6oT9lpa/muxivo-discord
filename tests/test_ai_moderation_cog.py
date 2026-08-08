@@ -142,6 +142,46 @@ async def test_decision_embed_uses_resolved_fallback_destination() -> None:
 
 
 @pytest.mark.asyncio
+async def test_attachment_download_failure_is_not_presented_as_safe() -> None:
+    settings = _Settings(); queue = _Queue(); punishments = _Punishments()
+    cog = AiModerationCog(_Bot(), settings, _ChannelService(), queue, UserModerationContextBuilder(punishments, _Events(settings)), punishments)
+    channel = _SentChannel()
+
+    async def fallback_destination(*_):
+        return [("source_channel", channel)]
+
+    cog._resolve_log_channels = fallback_destination
+    request = AiModerationRequest(
+        guild_id=1,
+        channel_id=2,
+        user_id=3,
+        message_id=4,
+        raw_text="",
+        created_at=datetime.now(timezone.utc),
+        has_attachments=True,
+    )
+    decision = AiModerationDecision(
+        event_id=1,
+        guild_id=1,
+        user_id=3,
+        message_id=4,
+        risk_score=0,
+        action="IGNORE",
+        primary_label="SAFE",
+        labels=("SAFE",),
+        execution_plan=("IGNORE",),
+        warnings=("media_download_timeout",),
+        dry_run=False,
+    )
+
+    await cog._send_log(_Guild(1), request, decision, "SUCCESS")
+
+    fields = {field.name: field.value for field in channel.embeds[0].fields}
+    assert "Media analysis incomplete" in fields["Decision"]
+    assert fields["Classification"] == "Media unavailable — no content decision"
+
+
+@pytest.mark.asyncio
 async def test_multi_step_action_reports_only_the_final_decision() -> None:
     settings = _ElevatedSettings(); queue = _Queue(); punishments = _Punishments()
     cog = AiModerationCog(_Bot(), settings, _ChannelService(), queue, UserModerationContextBuilder(punishments, _Events(settings)), punishments)

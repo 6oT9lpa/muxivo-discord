@@ -62,6 +62,11 @@ class AiModeratorApiClient:
             labels=tuple(data["labels"]),
             rule_matches=tuple(data.get("rule_matches", ())),
             execution_plan=tuple(data["execution_plan"]),
+            warnings=tuple(
+                warning
+                for warning in data.get("warnings", ())
+                if isinstance(warning, str)
+            )[:8],
             dry_run=data.get("execution_status") == "DRY_RUN",
         )
 

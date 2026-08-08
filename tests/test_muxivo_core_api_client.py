@@ -101,6 +101,43 @@ def test_moderate_forwards_safe_correlation_id() -> None:
     assert re.fullmatch(r"[0-9a-f-]{36}", requests[0].headers["x-correlation-id"])
 
 
+def test_moderate_preserves_safe_media_warning_codes() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "dataset_event_id": 1,
+                "risk_score": 0,
+                "decision_action": "IGNORE",
+                "primary_label": "SAFE",
+                "labels": ["SAFE"],
+                "execution_plan": ["IGNORE"],
+                "warnings": ["media_download_timeout", 42],
+            },
+        )
+
+    async def exercise() -> tuple[str, ...]:
+        client = AiModeratorApiClient("http://muxivo-core", "internal-key", 1)
+        client._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            decision = await client.moderate(
+                AiModerationRequest(
+                    guild_id=1,
+                    channel_id=2,
+                    user_id=3,
+                    message_id=4,
+                    raw_text="",
+                    created_at=datetime.now(timezone.utc),
+                )
+            )
+            return decision.warnings
+        finally:
+            await client.close()
+
+    assert asyncio.run(exercise()) == ("media_download_timeout",)
+
+
 def test_media_policy_requests_forward_verified_scope_and_revision() -> None:
     requests: list[httpx.Request] = []
 
