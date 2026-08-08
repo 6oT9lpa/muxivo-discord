@@ -101,6 +101,25 @@ def test_discord_attachment_uses_filename_when_discord_omits_content_type() -> N
     assert attachments[0].content_type == "image/gif"
 
 
+def test_discord_cdn_gif_link_is_sent_to_media_moderation() -> None:
+    message = SimpleNamespace(
+        attachments=(),
+        content="<https://cdn.discordapp.com/attachments/1/2/c8f07691d819d510.gif>",
+    )
+
+    attachments = AiModerationCog._media_attachments(message)
+
+    assert len(attachments) == 1
+    assert attachments[0].content_type == "image/gif"
+    assert attachments[0].file_size is None
+    assert str(attachments[0].download_url).endswith("c8f07691d819d510.gif")
+
+
+def test_non_discord_image_url_is_not_downloaded_by_bot() -> None:
+    message = SimpleNamespace(attachments=(), content="https://attacker.example/payload.gif")
+    assert AiModerationCog._media_attachments(message) == ()
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("attachments", "expected_path"),

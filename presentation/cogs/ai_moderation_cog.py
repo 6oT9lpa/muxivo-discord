@@ -157,7 +157,7 @@ class AiModerationCog(commands.Cog):
 
     @classmethod
     def _media_attachments(cls, message: disnake.Message):
-        return DiscordMediaAttachmentNormalizer.normalize_many(message.attachments)
+        return DiscordMediaAttachmentNormalizer.normalize_message_media(message)
 
     @commands.slash_command(name="set", description="AI moderation settings")
     @commands.has_permissions(administrator=True)

@@ -34,3 +34,12 @@ def test_link_preview_hydration_is_not_a_content_change() -> None:
     )
 
     assert not normalizer.changed(_message(message), _message(message, embeds=(automatic_preview,)))
+
+
+def test_gif_preview_hydration_is_not_a_content_change() -> None:
+    normalizer = DiscordMessageContentNormalizer()
+    gif_preview = SimpleNamespace(type="gifv", url="https://cdn.discordapp.com/attachments/1/2/a.gif")
+    assert not normalizer.changed(
+        _message("https://cdn.discordapp.com/attachments/1/2/a.gif"),
+        _message("https://cdn.discordapp.com/attachments/1/2/a.gif", embeds=(gif_preview,)),
+    )

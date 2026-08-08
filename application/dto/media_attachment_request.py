@@ -9,7 +9,9 @@ class MediaAttachmentRequest(BaseModel):
     media_reference: str | None = Field(default=None, min_length=1, max_length=512)
     file_name: str | None = Field(default=None, max_length=255)
     content_type: str = Field(min_length=1, max_length=127)
-    file_size: int = Field(gt=0, le=104_857_600)
+    # A Discord attachment supplies its declared size. A direct CDN media URL
+    # in message text does not, so Core validates the real streamed size.
+    file_size: int | None = Field(default=None, gt=0, le=104_857_600)
     width: int | None = Field(default=None, gt=0, le=100_000)
     height: int | None = Field(default=None, gt=0, le=100_000)
 
