@@ -35,6 +35,7 @@ def _request(*, attachments: tuple[MediaAttachmentRequest, ...] = ()) -> AiModer
         has_attachments=bool(attachments),
         attachment_count=len(attachments),
         attachments=attachments,
+        model_min_risk_by_label={"SCAM": 80},
     )
 
 
@@ -127,4 +128,24 @@ async def test_api_client_routes_text_and_media_to_one_decision_endpoint(
         assert body["attachments"][0]["download_url"].startswith("https://cdn.discordapp.com/")
     else:
         assert "attachments" not in body
+    assert "model_min_risk_by_label" not in body.get("message", body)
     assert decision.action == "DELETE_WARN"
+
+
+def test_api_client_redacts_validation_error_values() -> None:
+    response = httpx.Response(
+        422,
+        json={
+            "detail": [
+                {
+                    "loc": ["body", "attachments", 0, "file_size"],
+                    "type": "less_than_equal",
+                    "input": 15_000_000,
+                }
+            ]
+        },
+    )
+
+    assert AiModeratorApiClient._safe_error_summary(response) == (
+        ("attachments.0.file_size", "less_than_equal"),
+    )

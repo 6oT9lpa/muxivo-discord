@@ -36,10 +36,11 @@ class AiModeratorApiClient:
         )
         if response.status_code >= 400:
             logger.warning(
-                "Muxivo Core request failed status=%s message_id=%s endpoint=%s",
+                "Muxivo Core request failed status=%s message_id=%s endpoint=%s validation=%s",
                 response.status_code,
                 request.message_id,
                 endpoint,
+                self._safe_error_summary(response),
             )
         response.raise_for_status()
         data = response.json()
@@ -64,13 +65,38 @@ class AiModeratorApiClient:
     def _moderation_payload(self, request: AiModerationRequest) -> dict[str, Any]:
         payload = request.model_dump(
             mode="json",
-            exclude={"author_role_ids", "author_is_bot", "attachments"},
+            exclude={
+                "author_role_ids",
+                "author_is_bot",
+                "attachments",
+                # The media API deliberately owns score thresholds in its policy.
+                # This legacy bot-only hint is not part of its strict request schema.
+                "model_min_risk_by_label",
+            },
         )
         payload["platform"] = "discord"
         for key in ("guild_id", "channel_id", "user_id", "message_id", "reply_to_message_id"):
             if payload.get(key) is not None:
                 payload[key] = str(payload[key])
         return payload
+
+    @staticmethod
+    def _safe_error_summary(response: httpx.Response) -> tuple[tuple[str, str], ...]:
+        """Return only validation locations and error codes, never request content."""
+        try:
+            detail = response.json().get("detail", ())
+        except (ValueError, AttributeError):
+            return ()
+        if not isinstance(detail, list):
+            return ()
+        return tuple(
+            (
+                ".".join(str(part) for part in error.get("loc", ()) if part != "body"),
+                str(error.get("type", "unknown")),
+            )
+            for error in detail
+            if isinstance(error, dict)
+        )
 
     async def report_action(self, event_id: int, action: str, status: str, dry_run: bool) -> None:
         response = await self._http_client().post(
