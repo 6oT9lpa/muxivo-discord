@@ -65,6 +65,14 @@ def merge_with_default_ai_moderation_policy(policy: AiModerationGuildPolicy) -> 
     """Preserve a guild policy while supplying defaults for labels introduced later."""
     defaults = default_ai_moderation_policy()
     labels = {**defaults.labels, **policy.labels}
+    if policy.model_min_risk is not None:
+        # Migrate the previous global floor only where a per-label override is
+        # absent. This preserves a future explicit zero for a single class.
+        labels = {
+            label: item.model_copy(update={"model_min_risk": policy.model_min_risk})
+            if item.model_min_risk == 0 else item
+            for label, item in labels.items()
+        }
     legacy_threat = policy.labels.get("THREAT")
     if (
         legacy_threat is not None
@@ -107,7 +115,7 @@ def merge_with_default_ai_moderation_policy(policy: AiModerationGuildPolicy) -> 
         ocr_failure_mode=policy.ocr_failure_mode,
         ocr_max_gif_frames=policy.ocr_max_gif_frames,
         ocr_process_empty_result=policy.ocr_process_empty_result,
-        model_min_risk=policy.model_min_risk,
+        model_min_risk=None,
         test_mode=policy.test_mode,
         enforcement_mode=policy.enforcement_mode,
         limited_min_confidence=policy.limited_min_confidence,

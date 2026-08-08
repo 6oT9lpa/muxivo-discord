@@ -31,6 +31,7 @@ class AiModerationRequest(BaseModel):
     recent_messages: tuple[str, ...] = Field(default=(), max_length=20)
     recent_message_timestamps: tuple[datetime, ...] = Field(default=(), max_length=20)
     metadata: dict[str, Any] = Field(default_factory=dict, max_length=32)
+    model_min_risk_by_label: dict[str, int] = Field(default_factory=dict, max_length=32)
     event_type: Literal["CREATE", "UPDATE"] = "CREATE"
     user_context: UserModerationContext | None = None
 

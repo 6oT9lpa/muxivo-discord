@@ -80,7 +80,7 @@ onBeforeUnmount(() => {
 
 
 function policy(riskThreshold: number, minAction: AiModerationAction, maxAction: AiModerationAction): AiModerationLabelPolicy {
-  return { risk_threshold: riskThreshold, min_action: minAction, max_action: maxAction };
+  return { risk_threshold: riskThreshold, model_min_risk: 0, min_action: minAction, max_action: maxAction };
 }
 
 function emptyPolicy(): AiModerationPolicy {
@@ -104,7 +104,6 @@ function emptyPolicy(): AiModerationPolicy {
     ocr_failure_mode: "SKIP",
     ocr_max_gif_frames: 6,
     ocr_process_empty_result: false,
-    model_min_risk: 0,
     test_mode: false,
     enforcement_mode: "SHADOW",
     limited_min_confidence: 0.95,
@@ -121,7 +120,10 @@ function clonePolicy(source: AiModerationPolicy | undefined): AiModerationPolicy
   return {
     blacklist_words: [...source.blacklist_words],
     allowed_domains: [...source.allowed_domains],
-    labels: Object.fromEntries(labelDefinitions.map((item) => [item.key, { ...source.labels[item.key] ?? item.defaultPolicy }])),
+    labels: Object.fromEntries(labelDefinitions.map((item) => {
+      const sourceRule = source.labels[item.key];
+      return [item.key, { ...item.defaultPolicy, ...sourceRule, model_min_risk: sourceRule?.model_min_risk ?? 0 }];
+    })),
     blacklist_action: source.blacklist_action,
     unapproved_domain_action: source.unapproved_domain_action,
     context_window_days: source.context_window_days ?? 30,
@@ -138,7 +140,6 @@ function clonePolicy(source: AiModerationPolicy | undefined): AiModerationPolicy
     ocr_failure_mode: source.ocr_failure_mode ?? "SKIP",
     ocr_max_gif_frames: source.ocr_max_gif_frames ?? 6,
     ocr_process_empty_result: source.ocr_process_empty_result ?? false,
-    model_min_risk: source.model_min_risk ?? 0,
     test_mode: source.test_mode ?? false,
     enforcement_mode: source.enforcement_mode ?? "SHADOW",
     limited_min_confidence: source.limited_min_confidence ?? 0.95,
@@ -362,7 +363,9 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
 
     <div v-else-if="activeTab === 'model'" class="muxivo-coreation-workspace">
       <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t("ai.model_sensitivity") }}</span><h3>{{ $t("ai.model_sensitivity_heading") }}</h3><p>{{ $t("ai.model_sensitivity_help") }}</p></div></div>
-      <label class="ai-risk-card"><span><strong>{{ $t("ai.model_signal_floor") }}</strong><small>{{ $t("ai.model_signal_floor_help") }}</small></span><input v-model.number="moderationPolicy.model_min_risk" type="range" min="0" max="100" step="1" /><output>{{ moderationPolicy.model_min_risk }}</output></label>
+      <div class="ai-risk-list">
+        <label v-for="label in labelDefinitions" :key="label.key" class="ai-risk-card"><span><strong>{{ $t(label.titleKey) }}</strong><small>{{ $t("ai.model_signal_floor_help") }}</small></span><input v-model.number="policyFor(label.key).model_min_risk" type="range" min="0" max="100" step="1" /><output>{{ policyFor(label.key).model_min_risk }}</output></label>
+      </div>
       <p class="field-note">{{ $t("ai.model_sensitivity_note") }}</p>
     </div>
 

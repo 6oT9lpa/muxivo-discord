@@ -16,7 +16,8 @@ def test_default_ai_moderation_policy_covers_moderated_labels() -> None:
     assert policy.labels["FLOOD"].min_action == "TIMEOUT"
     assert policy.enforcement_mode == "SHADOW"
     assert policy.ocr_enabled is False
-    assert policy.model_min_risk == 0
+    assert policy.model_min_risk is None
+    assert policy.labels["TOXIC"].model_min_risk == 0
     assert policy.blacklist_words == ()
     assert policy.allowed_domains == ()
 
@@ -38,14 +39,25 @@ def test_ocr_setting_is_preserved_for_a_guild_policy() -> None:
     assert policy.ocr_enabled is True
 
 
-def test_model_sensitivity_is_validated_and_preserved_for_a_guild_policy() -> None:
+def test_legacy_global_model_sensitivity_is_migrated_to_each_label() -> None:
     policy = merge_with_default_ai_moderation_policy(
         AiModerationGuildPolicy.model_validate({"model_min_risk": 80})
     )
 
-    assert policy.model_min_risk == 80
+    assert policy.model_min_risk is None
+    assert policy.labels["TOXIC"].model_min_risk == 80
+    assert policy.labels["SCAM"].model_min_risk == 80
     with pytest.raises(ValueError):
         AiModerationGuildPolicy.model_validate({"model_min_risk": 101})
+
+
+def test_label_model_sensitivity_is_validated_independently() -> None:
+    policy = AiModerationGuildPolicy.model_validate({"labels": {"TOXIC": {"model_min_risk": 70}, "SCAM": {"model_min_risk": 90}}})
+
+    assert policy.labels["TOXIC"].model_min_risk == 70
+    assert policy.labels["SCAM"].model_min_risk == 90
+    with pytest.raises(ValueError):
+        AiModerationGuildPolicy.model_validate({"labels": {"TOXIC": {"model_min_risk": 101}}})
 
 
 def test_legacy_default_threat_rule_is_upgraded_to_timeout() -> None:

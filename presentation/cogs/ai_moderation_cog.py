@@ -124,7 +124,6 @@ class AiModerationCog(commands.Cog):
         metadata["ocr_max_gif_frames"] = policy.ocr_max_gif_frames
         metadata["ocr_process_empty_result"] = policy.ocr_process_empty_result
         metadata["ocr_failure_mode"] = policy.ocr_failure_mode
-        metadata["model_min_risk"] = policy.model_min_risk
         media_attachments = self._media_attachments(message) if policy.ocr_enabled else ()
         metadata["discord_attachment_count"] = len(message.attachments)
         return AiModerationRequest(
@@ -148,6 +147,7 @@ class AiModerationCog(commands.Cog):
             recent_messages=recent_messages,
             recent_message_timestamps=recent_timestamps,
             metadata=metadata,
+            model_min_risk_by_label={label: rule.model_min_risk for label, rule in policy.labels.items()},
             event_type=event_type,
             user_context=user_context,
         )

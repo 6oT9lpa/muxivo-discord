@@ -24,9 +24,9 @@ const runtimeRows = computed(() => [
   [t("settings.message_retention"), t("settings.days", { value: activity.botSettings?.retention?.message_log_retention_days || "-" })],
   [t("settings.punishment_retention"), t("settings.days", { value: activity.botSettings?.retention?.punishment_retention_days || "-" })],
 ]);
-const enforcement = reactive<Pick<AiModerationPolicy, "enforcement_mode" | "limited_min_confidence" | "beta_enforcement_acknowledged" | "allow_automated_timeout" | "allow_automated_kick" | "allow_automated_ban" | "test_mode" | "ocr_enabled" | "ocr_failure_mode" | "ocr_max_gif_frames" | "ocr_process_empty_result" | "model_min_risk">>({
+const enforcement = reactive<Pick<AiModerationPolicy, "enforcement_mode" | "limited_min_confidence" | "beta_enforcement_acknowledged" | "allow_automated_timeout" | "allow_automated_kick" | "allow_automated_ban" | "test_mode" | "ocr_enabled" | "ocr_failure_mode" | "ocr_max_gif_frames" | "ocr_process_empty_result">>({
   enforcement_mode: "SHADOW", limited_min_confidence: 0.95, beta_enforcement_acknowledged: false,
-  allow_automated_timeout: false, allow_automated_kick: false, allow_automated_ban: false, test_mode: false, ocr_enabled: false, ocr_failure_mode: "SKIP", ocr_max_gif_frames: 6, ocr_process_empty_result: false, model_min_risk: 0,
+  allow_automated_timeout: false, allow_automated_kick: false, allow_automated_ban: false, test_mode: false, ocr_enabled: false, ocr_failure_mode: "SKIP", ocr_max_gif_frames: 6, ocr_process_empty_result: false,
 });
 const elevatedEnabled = computed(() => enforcement.enforcement_mode === "ELEVATED" && enforcement.beta_enforcement_acknowledged);
 const ocrReady = computed(() => activity.aiModerator?.ocr?.ready === true);
@@ -39,7 +39,7 @@ watch(() => activity.aiModerator?.policy, (policy) => {
     enforcement_mode: policy.enforcement_mode ?? "SHADOW", limited_min_confidence: policy.limited_min_confidence ?? 0.95,
     beta_enforcement_acknowledged: policy.beta_enforcement_acknowledged ?? false, allow_automated_timeout: policy.allow_automated_timeout ?? false,
     allow_automated_kick: policy.allow_automated_kick ?? false, allow_automated_ban: policy.allow_automated_ban ?? false,
-    test_mode: policy.test_mode ?? false, ocr_enabled: policy.ocr_enabled ?? false, ocr_failure_mode: policy.ocr_failure_mode ?? "SKIP", ocr_max_gif_frames: policy.ocr_max_gif_frames ?? 6, ocr_process_empty_result: policy.ocr_process_empty_result ?? false, model_min_risk: policy.model_min_risk ?? 0,
+    test_mode: policy.test_mode ?? false, ocr_enabled: policy.ocr_enabled ?? false, ocr_failure_mode: policy.ocr_failure_mode ?? "SKIP", ocr_max_gif_frames: policy.ocr_max_gif_frames ?? 6, ocr_process_empty_result: policy.ocr_process_empty_result ?? false,
   });
 }, { immediate: true });
 
