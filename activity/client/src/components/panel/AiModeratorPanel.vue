@@ -5,10 +5,10 @@ import RevealOnScroll from "../common/RevealOnScroll.vue";
 import PanelTabNav from "./PanelTabNav.vue";
 import SearchableSelector from "./SearchableSelector.vue";
 import { useActivityStore } from "../../stores/activity.store";
-import type { AiModerationAction, AiModerationLabelPolicy, AiModerationPolicy, MediaPolicy } from "../../types/activity.types";
+import type { AiModerationAction, AiModerationLabelPolicy, AiModerationPolicy } from "../../types/activity.types";
 import { t } from "../../i18n";
 
-type AiModeratorTab = "channels" | "policy" | "media" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics";
+type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics";
 type ExclusionKind = "user" | "role" | "channel";
 
 type LabelDefinition = {
@@ -42,7 +42,7 @@ const labelDefinitions: LabelDefinition[] = [
     key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, min, max),
   })),
 ];
-const tabs = computed(() => (["channels", "policy", "media", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
+const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
   .map((key) => ({ key, labelKey: `ai.tab.${key}` })));
 const exclusionSections = computed(() => ([
   { key: "user" as const, titleKey: "ai.exclusions.users", helpKey: "ai.exclusions.users_help", placeholderKey: "ai.exclusions.search_users", values: moderationPolicy.excluded_user_ids, candidates: activity.members.map((member) => ({ id: member.id, label: `${member.display_name} (@${member.username})`, search: `${member.display_name} ${member.username} ${member.id}` })) },
@@ -50,16 +50,12 @@ const exclusionSections = computed(() => ([
   { key: "channel" as const, titleKey: "ai.exclusions.channels", helpKey: "ai.exclusions.channels_help", placeholderKey: "ai.exclusions.search_channels", values: moderationPolicy.excluded_channel_ids, candidates: activity.textChannels.map((channel) => ({ id: channel.id, label: `#${channel.name}`, search: `${channel.name} ${channel.id}` })) },
 ]));
 const moderationPolicy = reactive<AiModerationPolicy>(emptyPolicy());
-const mediaDraft = ref<MediaPolicy | null>(null);
 
 watch(settings, (value) => {
   selectedChannels.value = visibleSelectedChannels(value?.channels ?? []);
   Object.assign(moderationPolicy, clonePolicy(value?.policy));
 }, { immediate: true });
 
-watch(() => activity.mediaPolicy, (value) => {
-  mediaDraft.value = value ? JSON.parse(JSON.stringify(value.media)) as MediaPolicy : null;
-}, { immediate: true });
 
 function policy(riskThreshold: number, minAction: AiModerationAction, maxAction: AiModerationAction): AiModerationLabelPolicy {
   return { risk_threshold: riskThreshold, min_action: minAction, max_action: maxAction };
@@ -162,34 +158,6 @@ async function savePolicy(message: string) {
   }
 }
 
-async function saveMedia() {
-  if (!mediaDraft.value || !activity.mediaPolicy) return;
-  try {
-    await activity.saveMediaPolicyValue(mediaDraft.value, activity.mediaPolicy.revision);
-    status.value = "Media policy saved and verified";
-  } catch (error) {
-    status.value = error instanceof Error ? error.message : "Media policy save failed; reload and retry";
-  }
-}
-
-async function resetMedia() {
-  if (!activity.mediaPolicy || activity.mediaPolicy.source !== "DATABASE") return;
-  try {
-    await activity.resetMediaPolicyValue(activity.mediaPolicy.revision);
-    status.value = "Media policy reset to YAML defaults";
-  } catch (error) {
-    status.value = error instanceof Error ? error.message : "Media policy reset failed; reload and retry";
-  }
-}
-
-async function reloadMedia() {
-  try {
-    await activity.reloadMediaPolicy();
-    status.value = "Media policy reloaded";
-  } catch (error) {
-    status.value = error instanceof Error ? error.message : "Media policy reload failed";
-  }
-}
 
 async function loadMetrics() {
   try { await activity.loadAiModeratorMetrics(); } catch (error) { status.value = error instanceof Error ? error.message : t("ai.metrics_unavailable"); }
@@ -295,54 +263,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
         <label><span>{{ $t("ai.domain_action") }}</span><select v-model="moderationPolicy.unapproved_domain_action"><option v-for="action in actionOptions" :key="action.value" :value="action.value">{{ $t(action.labelKey) }}</option></select></label>
       </div>
       <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.policy_saved'))">{{ $t("ai.save_policy") }}</button></div>
-    </div>
-
-    <div v-else-if="activeTab === 'media'" class="muxivo-coreation-workspace">
-      <div class="muxivo-coreation-section-copy">
-        <div><span class="muxivo-coreation-kicker">OCR / detector policy</span><h3>Media moderation</h3><p>Guild policy is stored separately from the Muxivo Core model runtime.</p></div>
-        <div v-if="activity.mediaPolicy"><strong>{{ activity.mediaPolicy.source }}</strong><br /><small>{{ activity.mediaPolicy.defaults_version }} · revision {{ activity.mediaPolicy.revision }}</small></div>
-      </div>
-      <div v-if="activity.mediaPolicy" class="ai-policy-summary">
-        <article><strong>{{ activity.mediaPolicy.runtime.ocr_ready ? 'Ready' : 'Unavailable' }}</strong><span>OCR runtime</span></article>
-        <article><strong>{{ activity.mediaPolicy.runtime.yolo_ready ? 'Ready' : 'Unavailable' }}</strong><span>Detector runtime</span></article>
-        <article><strong>{{ activity.mediaPolicy.updated_by ?? 'YAML' }}</strong><span>Last editor</span></article>
-      </div>
-      <template v-if="mediaDraft">
-        <h3>OCR</h3>
-        <div class="ai-policy-controls">
-          <label><span>Enabled</span><input v-model="mediaDraft.ocr.ocr.enabled" type="checkbox" /></label>
-          <label><span>Required</span><input v-model="mediaDraft.ocr.ocr.required" type="checkbox" /></label>
-          <label><span>Allow partial</span><input v-model="mediaDraft.ocr.ocr.allow_partial_results" type="checkbox" /></label>
-          <label><span>Line confidence</span><input v-model.number="mediaDraft.ocr.ocr.processing.min_line_confidence" type="number" min="0" max="1" step="0.01" /></label>
-          <label><span>Mean confidence</span><input v-model.number="mediaDraft.ocr.ocr.processing.min_mean_confidence" type="number" min="0" max="1" step="0.01" /></label>
-          <label><span>Minimum text length</span><input v-model.number="mediaDraft.ocr.ocr.processing.min_text_length" type="number" min="0" max="8000" /></label>
-          <label><span>Maximum text length</span><input v-model.number="mediaDraft.ocr.ocr.processing.max_text_length" type="number" min="1" max="32000" /></label>
-          <label><span>Timeout</span><select v-model="mediaDraft.ocr.ocr.failure_policy.timeout"><option value="partial">Partial</option><option value="reject">Reject</option></select></label>
-          <label><span>Unavailable</span><select v-model="mediaDraft.ocr.ocr.failure_policy.unavailable"><option value="partial">Partial</option><option value="reject">Reject</option></select></label>
-        </div>
-        <h3>Object detector</h3>
-        <div class="ai-policy-controls">
-          <label><span>Enabled</span><input v-model="mediaDraft.yolo.yolo.enabled" type="checkbox" /></label>
-          <label><span>Required</span><input v-model="mediaDraft.yolo.yolo.required" type="checkbox" /></label>
-          <label><span>Allow partial</span><input v-model="mediaDraft.yolo.yolo.allow_partial_results" type="checkbox" /></label>
-          <label><span>Confidence</span><input v-model.number="mediaDraft.yolo.yolo.inference.confidence_threshold" type="number" min="0" max="1" step="0.01" /></label>
-          <label><span>IoU</span><input v-model.number="mediaDraft.yolo.yolo.inference.iou_threshold" type="number" min="0" max="1" step="0.01" /></label>
-          <label><span>Max detections</span><input v-model.number="mediaDraft.yolo.yolo.inference.max_detections" type="number" min="1" max="1000" /></label>
-        </div>
-        <div class="ai-rule-list">
-          <article v-for="(rule, detectorClass) in mediaDraft.yolo.yolo.classes" :key="detectorClass" class="ai-rule-card">
-            <div><strong>{{ detectorClass }}</strong><span>{{ rule.moderation_label }}</span></div>
-            <label><span>Enabled</span><input v-model="rule.enabled" type="checkbox" /></label>
-            <label><span>Min confidence</span><input v-model.number="rule.min_confidence" type="number" min="0" max="1" step="0.01" /></label>
-            <label><span>Severity</span><input v-model.number="rule.severity" type="number" min="0" max="5" /></label>
-          </article>
-        </div>
-        <div class="form-actions">
-          <button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="saveMedia">Save</button>
-          <button class="ghost-button" type="button" :disabled="activity.moduleLoading" @click="reloadMedia">Reload</button>
-          <button class="ghost-button" type="button" :disabled="activity.moduleLoading || activity.mediaPolicy?.source !== 'DATABASE'" @click="resetMedia">Reset to defaults</button>
-        </div>
-      </template>
     </div>
 
     <div v-else-if="activeTab === 'blacklist'" class="muxivo-coreation-workspace">

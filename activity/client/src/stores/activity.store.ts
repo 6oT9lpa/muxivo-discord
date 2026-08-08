@@ -485,9 +485,11 @@ export const useActivityStore = defineStore("activity", {
           this.activityRoles = settings.activity_roles;
           this.channelPurposes = settings.channel_purposes;
         } else if (module === "muxivo-core") {
-          [this.aiModerator, this.mediaPolicy] = await Promise.all([
-            getAiModeratorSettings(guildId, this.token), getMediaPolicy(guildId, this.token),
-          ]);
+          // Muxivo Core v2 owns media inference internally and no longer exposes
+          // the legacy per-guild media-policy endpoint.  Loading it here made
+          // the complete moderator screen fail although text moderation worked.
+          this.aiModerator = await getAiModeratorSettings(guildId, this.token);
+          this.mediaPolicy = null;
         } else if (module === "ai-review") {
           this.aiModerator = await getAiModeratorSettings(guildId, this.token);
         } else if (module === "integrations") {
@@ -534,6 +536,7 @@ export const useActivityStore = defineStore("activity", {
     async saveAiModeratorPolicyValue(policy: Record<string, unknown>) {
       if (!this.session || !this.token || this.mode === "local") return;
       this.aiModerator = await saveAiModeratorPolicy(this.session.guild_id, this.token, policy);
+      if (!this.aiModerator?.policy) throw new Error("Muxivo Core policy save could not be verified");
     },
     async reloadMediaPolicy() {
       if (!this.session || !this.token || this.mode === "local") return;

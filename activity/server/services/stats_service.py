@@ -28,7 +28,18 @@ class ActivityStatsService:
     async def search_user_stats(self, guild_id: int, query: str, access_token: str) -> list[dict[str, Any]]:
         logger.info("Searching Activity user stats guild_id=%s query=%s", guild_id, query)
         await self._access_service.ensure_module_access(access_token, str(guild_id), "server-stats")
-        members = await self._discord.search_members(str(guild_id), query, 10)
+        # Discord's member-search endpoint only matches display names. It does
+        # not find a snowflake (or a fragment of it), which made a valid ID
+        # search look like an empty result in the Activity.
+        normalized_query = query.strip().casefold()
+        if normalized_query.isdigit():
+            members = [
+                member
+                for member in await self._discord.list_members(str(guild_id), 1000)
+                if normalized_query in str(member.id)
+            ][:10]
+        else:
+            members = await self._discord.search_members(str(guild_id), query, 10)
         member_ids = [int(member.id) for member in members]
         stats_by_user = await self._query_user_stats_batch(guild_id, member_ids)
         return [
