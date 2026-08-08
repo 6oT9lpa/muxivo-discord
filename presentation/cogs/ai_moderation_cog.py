@@ -121,6 +121,9 @@ class AiModerationCog(commands.Cog):
         )
         recent_messages, recent_timestamps = await self._recent_author_messages(message)
         metadata = await self._reply_context(message)
+        metadata["ocr_max_gif_frames"] = policy.ocr_max_gif_frames
+        metadata["ocr_process_empty_result"] = policy.ocr_process_empty_result
+        metadata["ocr_failure_mode"] = policy.ocr_failure_mode
         media_attachments = self._media_attachments(message) if policy.ocr_enabled else ()
         metadata["discord_attachment_count"] = len(message.attachments)
         return AiModerationRequest(

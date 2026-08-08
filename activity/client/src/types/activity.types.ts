@@ -275,6 +275,9 @@ export type AiModerationPolicy = {
   excluded_channel_ids: string[];
   exclude_bots: boolean;
   ocr_enabled: boolean;
+  ocr_failure_mode: "SKIP" | "REVIEW";
+  ocr_max_gif_frames: number;
+  ocr_process_empty_result: boolean;
   test_mode: boolean;
   enforcement_mode: "SHADOW" | "LIMITED" | "ELEVATED";
   limited_min_confidence: number;

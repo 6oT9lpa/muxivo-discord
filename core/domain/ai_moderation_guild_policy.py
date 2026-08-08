@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -29,6 +30,9 @@ class AiModerationGuildPolicy(BaseModel):
     # default preserves the historical text-only moderation behaviour until an
     # administrator explicitly enables OCR in AI Moderator settings.
     ocr_enabled: bool = False
+    ocr_failure_mode: Literal["SKIP", "REVIEW"] = "SKIP"
+    ocr_max_gif_frames: int = Field(default=6, ge=1, le=24)
+    ocr_process_empty_result: bool = False
     test_mode: bool = False
     enforcement_mode: AiModerationEnforcementMode = AiModerationEnforcementMode.SHADOW
     limited_min_confidence: float = Field(default=0.95, ge=0.0, le=1.0)
