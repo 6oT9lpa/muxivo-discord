@@ -7,12 +7,12 @@ from disnake.ext import commands, tasks
 
 from application.dto.ai_moderation_decision import AiModerationDecision
 from application.dto.ai_moderation_request import AiModerationRequest
-from application.dto.media_attachment_request import MediaAttachmentRequest
 from application.services.ai_moderation_queue import AiModerationQueue
 from application.services.ai_moderation_policy_enforcer import AiModerationPolicyEnforcer
 from application.services.ai_moderation_settings_service import AiModerationSettingsService
 from application.services.channel_service import ChannelService
 from application.services.discord_message_content import DiscordMessageContentNormalizer
+from application.services.discord_media_attachment_normalizer import DiscordMediaAttachmentNormalizer
 from application.services.flood_enforcement_coordinator import FloodEnforcementCoordinator
 from application.services.user_moderation_context_builder import UserModerationContextBuilder
 from core.domain.channel_purpose import ChannelPurpose
@@ -34,10 +34,6 @@ class AiModerationCog(commands.Cog):
         "KICK": "kick_members",
         "BAN": "ban_members",
     }
-    # Keep this list aligned with the formats decoded by Muxivo Core.  GIF is
-    # intentionally excluded: animated images are not accepted by the media
-    # validator and must not turn a Discord message into a failed API request.
-    _SUPPORTED_IMAGE_CONTENT_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
 
     def __init__(self, bot: commands.Bot, settings_service: AiModerationSettingsService, channel_service: ChannelService, queue: AiModerationQueue, context_builder: UserModerationContextBuilder, punishment_repository: PunishmentRepositoryInterface, ai_repository: AiModerationRepositoryInterface | None = None) -> None:
         self._bot = bot
@@ -156,24 +152,8 @@ class AiModerationCog(commands.Cog):
         )
 
     @classmethod
-    def _media_attachments(cls, message: disnake.Message) -> tuple[MediaAttachmentRequest, ...]:
-        attachments: list[MediaAttachmentRequest] = []
-        for attachment in message.attachments:
-            content_type = (attachment.content_type or "").split(";", 1)[0].strip().casefold()
-            if content_type not in cls._SUPPORTED_IMAGE_CONTENT_TYPES:
-                continue
-            attachments.append(
-                MediaAttachmentRequest(
-                    attachment_id=str(attachment.id),
-                    download_url=str(attachment.url),
-                    file_name=attachment.filename,
-                    content_type=content_type,
-                    file_size=attachment.size,
-                    width=attachment.width,
-                    height=attachment.height,
-                )
-            )
-        return tuple(attachments)
+    def _media_attachments(cls, message: disnake.Message):
+        return DiscordMediaAttachmentNormalizer.normalize_many(message.attachments)
 
     @commands.slash_command(name="set", description="AI moderation settings")
     @commands.has_permissions(administrator=True)
