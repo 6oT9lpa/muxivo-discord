@@ -300,10 +300,11 @@ class AiModerationCog(commands.Cog):
                 await self._record_ai_punishment(request, action, decision.dry_run)
             # The AI API tracks a single decision, while Discord enforcement
             # may need multiple technical steps (for example DELETE → TIMEOUT).
-            # Report only the final decision after every step has succeeded.
+            # Report the terminal technical action after every step succeeds.
+            # DELETE_WARN is an aggregate Discord outcome; Core records WARN.
             await self._queue.report_action(
                 decision.event_id,
-                decision.action,
+                self._result_action(decision),
                 "DRY_RUN" if decision.dry_run else "SUCCESS",
                 decision.dry_run,
             )
@@ -315,7 +316,7 @@ class AiModerationCog(commands.Cog):
             try:
                 await self._queue.report_action(
                     decision.event_id,
-                    decision.action,
+                    self._result_action(decision),
                     "FAILED",
                     decision.dry_run,
                 )
@@ -352,6 +353,11 @@ class AiModerationCog(commands.Cog):
             except Exception:
                 logger.exception("Could not enqueue AI review item guild_id=%s message_id=%s", request.guild_id, request.message_id)
         await self._send_log(guild, request, decision, status)
+
+    @staticmethod
+    def _result_action(decision: AiModerationDecision) -> str:
+        """Map aggregate Discord outcomes to the Core action-result contract."""
+        return "WARN" if decision.action == "DELETE_WARN" else decision.action
 
     @staticmethod
     def _is_flood_timeout(decision: AiModerationDecision) -> bool:

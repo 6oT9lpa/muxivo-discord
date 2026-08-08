@@ -157,7 +157,7 @@ async def test_multi_step_action_reports_only_the_final_decision() -> None:
     await cog.handle_decision(request, decision)
 
     assert executed == ["DELETE", "WARN"]
-    assert queue.actions == [(1, "DELETE_WARN", "SUCCESS", False)]
+    assert queue.actions == [(1, "WARN", "SUCCESS", False)]
 
 
 @pytest.mark.parametrize(
@@ -347,7 +347,7 @@ async def test_discord_forbidden_timeout_falls_back_to_warning_after_delete() ->
     await cog.handle_decision(request, decision)
 
     assert executed == ["DELETE", "TIMEOUT", "WARN"]
-    assert queue.actions == [(1, "DELETE_WARN", "SUCCESS", False)]
+    assert queue.actions == [(1, "WARN", "SUCCESS", False)]
     assert settings.events[0][5:7] == ("DELETE_WARN", "TIMEOUT")
     assert settings.events[0][-1] == "SUCCESS"
     assert sent_logs == [("DELETE_WARN", "TIMEOUT", "SUCCESS")]
