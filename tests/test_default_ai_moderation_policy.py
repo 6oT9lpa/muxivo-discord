@@ -17,7 +17,9 @@ def test_default_ai_moderation_policy_covers_moderated_labels() -> None:
     assert policy.enforcement_mode == "SHADOW"
     assert policy.ocr_enabled is False
     assert policy.model_min_risk is None
-    assert policy.labels["TOXIC"].model_min_risk == 0
+    assert policy.labels["TOXIC"].model_min_risk == 50
+    assert policy.labels["SCAM"].model_min_risk == 60
+    assert policy.labels["HATE"].model_min_risk == 30
     assert policy.blacklist_words == ()
     assert policy.allowed_domains == ()
 
@@ -58,6 +60,33 @@ def test_label_model_sensitivity_is_validated_independently() -> None:
     assert policy.labels["SCAM"].model_min_risk == 90
     with pytest.raises(ValueError):
         AiModerationGuildPolicy.model_validate({"labels": {"TOXIC": {"model_min_risk": 101}}})
+
+
+def test_existing_policy_without_sensitivity_overrides_receives_calibrated_defaults() -> None:
+    policy = merge_with_default_ai_moderation_policy(
+        AiModerationGuildPolicy.model_validate({
+            "labels": {
+                "TOXIC": {"risk_threshold": 60, "model_min_risk": 0},
+                "SCAM": {"risk_threshold": 70, "model_min_risk": 0},
+            },
+        })
+    )
+
+    assert policy.labels["TOXIC"].risk_threshold == 60
+    assert policy.labels["TOXIC"].model_min_risk == 50
+    assert policy.labels["SCAM"].risk_threshold == 70
+    assert policy.labels["SCAM"].model_min_risk == 60
+
+
+def test_explicit_zero_sensitivity_override_is_preserved() -> None:
+    policy = merge_with_default_ai_moderation_policy(
+        AiModerationGuildPolicy.model_validate({
+            "labels": {"SCAM": {"model_min_risk": 0}},
+            "model_min_risk_overrides": {"SCAM": 0},
+        })
+    )
+
+    assert policy.labels["SCAM"].model_min_risk == 0
 
 
 def test_legacy_default_threat_rule_is_upgraded_to_timeout() -> None:

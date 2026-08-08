@@ -36,6 +36,11 @@ class AiModerationGuildPolicy(BaseModel):
     # Compatibility for policies saved by the short-lived global-sensitivity
     # UI. The merger migrates it to every label and then clears this field.
     model_min_risk: int | None = Field(default=None, ge=0, le=100)
+    # Only values deliberately changed by a guild are listed here.  Keeping
+    # this separately from ``labels`` lets a newly calibrated default take
+    # effect for communities that customised another part of their policy,
+    # while an administrator can still explicitly choose a floor of zero.
+    model_min_risk_overrides: dict[str, int] = Field(default_factory=dict, max_length=32)
     test_mode: bool = False
     enforcement_mode: AiModerationEnforcementMode = AiModerationEnforcementMode.SHADOW
     limited_min_confidence: float = Field(default=0.95, ge=0.0, le=1.0)
@@ -97,3 +102,13 @@ class AiModerationGuildPolicy(BaseModel):
         if not isinstance(values, Mapping):
             raise ValueError("labels must be an object")
         return {str(label).strip().upper(): value for label, value in values.items() if str(label).strip()}
+
+    @field_validator("model_min_risk_overrides")
+    @classmethod
+    def normalize_model_min_risk_overrides(cls, values: Mapping[str, int]) -> dict[str, int]:
+        if not isinstance(values, Mapping):
+            raise ValueError("model_min_risk_overrides must be an object")
+        normalized = {str(label).strip().upper(): int(value) for label, value in values.items() if str(label).strip()}
+        if any(not 0 <= value <= 100 for value in normalized.values()):
+            raise ValueError("model sensitivity overrides must be between 0 and 100")
+        return normalized
