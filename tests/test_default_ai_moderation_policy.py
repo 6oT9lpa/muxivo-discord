@@ -1,3 +1,5 @@
+import pytest
+
 from core.domain.ai_moderation_guild_policy import AiModerationGuildPolicy
 from core.domain.default_ai_moderation_policy import default_ai_moderation_policy, merge_with_default_ai_moderation_policy
 
@@ -14,6 +16,7 @@ def test_default_ai_moderation_policy_covers_moderated_labels() -> None:
     assert policy.labels["FLOOD"].min_action == "TIMEOUT"
     assert policy.enforcement_mode == "SHADOW"
     assert policy.ocr_enabled is False
+    assert policy.model_min_risk == 0
     assert policy.blacklist_words == ()
     assert policy.allowed_domains == ()
 
@@ -33,6 +36,16 @@ def test_ocr_setting_is_preserved_for_a_guild_policy() -> None:
     policy = merge_with_default_ai_moderation_policy(AiModerationGuildPolicy.model_validate({"ocr_enabled": True}))
 
     assert policy.ocr_enabled is True
+
+
+def test_model_sensitivity_is_validated_and_preserved_for_a_guild_policy() -> None:
+    policy = merge_with_default_ai_moderation_policy(
+        AiModerationGuildPolicy.model_validate({"model_min_risk": 80})
+    )
+
+    assert policy.model_min_risk == 80
+    with pytest.raises(ValueError):
+        AiModerationGuildPolicy.model_validate({"model_min_risk": 101})
 
 
 def test_legacy_default_threat_rule_is_upgraded_to_timeout() -> None:

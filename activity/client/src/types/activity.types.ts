@@ -278,6 +278,7 @@ export type AiModerationPolicy = {
   ocr_failure_mode: "SKIP" | "REVIEW";
   ocr_max_gif_frames: number;
   ocr_process_empty_result: boolean;
+  model_min_risk: number;
   test_mode: boolean;
   enforcement_mode: "SHADOW" | "LIMITED" | "ELEVATED";
   limited_min_confidence: number;

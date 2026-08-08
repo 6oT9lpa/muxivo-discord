@@ -33,6 +33,10 @@ class AiModerationGuildPolicy(BaseModel):
     ocr_failure_mode: Literal["SKIP", "REVIEW"] = "SKIP"
     ocr_max_gif_frames: int = Field(default=6, ge=1, le=24)
     ocr_process_empty_result: bool = False
+    # This is deliberately distinct from per-label risk thresholds. It is the
+    # minimum raw ruBERT score that may enter the rule engine as a model signal.
+    # A value of zero preserves the historical model behaviour.
+    model_min_risk: int = Field(default=0, ge=0, le=100)
     test_mode: bool = False
     enforcement_mode: AiModerationEnforcementMode = AiModerationEnforcementMode.SHADOW
     limited_min_confidence: float = Field(default=0.95, ge=0.0, le=1.0)

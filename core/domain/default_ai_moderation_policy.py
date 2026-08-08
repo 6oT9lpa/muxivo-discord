@@ -107,6 +107,7 @@ def merge_with_default_ai_moderation_policy(policy: AiModerationGuildPolicy) -> 
         ocr_failure_mode=policy.ocr_failure_mode,
         ocr_max_gif_frames=policy.ocr_max_gif_frames,
         ocr_process_empty_result=policy.ocr_process_empty_result,
+        model_min_risk=policy.model_min_risk,
         test_mode=policy.test_mode,
         enforcement_mode=policy.enforcement_mode,
         limited_min_confidence=policy.limited_min_confidence,

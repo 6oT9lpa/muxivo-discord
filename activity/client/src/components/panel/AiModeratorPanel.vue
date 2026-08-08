@@ -8,7 +8,7 @@ import { useActivityStore } from "../../stores/activity.store";
 import type { AiModerationAction, AiModerationLabelPolicy, AiModerationPolicy } from "../../types/activity.types";
 import { t } from "../../i18n";
 
-type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "metrics";
+type AiModeratorTab = "channels" | "policy" | "blacklist" | "domains" | "exceptions" | "actions" | "risk" | "model" | "metrics";
 type ExclusionKind = "user" | "role" | "channel";
 
 type LabelDefinition = {
@@ -47,7 +47,7 @@ const labelDefinitions: LabelDefinition[] = [
     key, titleKey: `ai.label.${key}.title`, descriptionKey: `ai.label.${key}.description`, defaultPolicy: policy(risk, min, max),
   })),
 ];
-const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
+const tabs = computed(() => (["channels", "policy", "blacklist", "domains", "exceptions", "actions", "risk", "model", ...(settings.value?.metrics_enabled ? ["metrics"] : [])] as AiModeratorTab[])
   .map((key) => ({ key, labelKey: `ai.tab.${key}` })));
 const exclusionSections = computed(() => ([
   { key: "user" as const, titleKey: "ai.exclusions.users", helpKey: "ai.exclusions.users_help", placeholderKey: "ai.exclusions.search_users", values: moderationPolicy.excluded_user_ids, candidates: activity.members.map((member) => ({ id: member.id, label: `${member.display_name} (@${member.username})`, search: `${member.display_name} ${member.username} ${member.id}` })) },
@@ -104,6 +104,7 @@ function emptyPolicy(): AiModerationPolicy {
     ocr_failure_mode: "SKIP",
     ocr_max_gif_frames: 6,
     ocr_process_empty_result: false,
+    model_min_risk: 0,
     test_mode: false,
     enforcement_mode: "SHADOW",
     limited_min_confidence: 0.95,
@@ -137,6 +138,7 @@ function clonePolicy(source: AiModerationPolicy | undefined): AiModerationPolicy
     ocr_failure_mode: source.ocr_failure_mode ?? "SKIP",
     ocr_max_gif_frames: source.ocr_max_gif_frames ?? 6,
     ocr_process_empty_result: source.ocr_process_empty_result ?? false,
+    model_min_risk: source.model_min_risk ?? 0,
     test_mode: source.test_mode ?? false,
     enforcement_mode: source.enforcement_mode ?? "SHADOW",
     limited_min_confidence: source.limited_min_confidence ?? 0.95,
@@ -356,6 +358,12 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="ai-risk-list">
         <label v-for="label in labelDefinitions" :key="label.key" class="ai-risk-card"><span><strong>{{ $t(label.titleKey) }}</strong><small>{{ $t(label.descriptionKey) }}</small></span><input v-model.number="policyFor(label.key).risk_threshold" type="range" min="0" max="100" step="1" /><output>{{ policyFor(label.key).risk_threshold }}</output></label>
       </div>
+    </div>
+
+    <div v-else-if="activeTab === 'model'" class="muxivo-coreation-workspace">
+      <div class="muxivo-coreation-section-copy"><div><span class="muxivo-coreation-kicker">{{ $t("ai.model_sensitivity") }}</span><h3>{{ $t("ai.model_sensitivity_heading") }}</h3><p>{{ $t("ai.model_sensitivity_help") }}</p></div></div>
+      <label class="ai-risk-card"><span><strong>{{ $t("ai.model_signal_floor") }}</strong><small>{{ $t("ai.model_signal_floor_help") }}</small></span><input v-model.number="moderationPolicy.model_min_risk" type="range" min="0" max="100" step="1" /><output>{{ moderationPolicy.model_min_risk }}</output></label>
+      <p class="field-note">{{ $t("ai.model_sensitivity_note") }}</p>
     </div>
 
     <div v-else class="muxivo-coreation-workspace">
