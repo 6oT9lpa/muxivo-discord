@@ -34,7 +34,10 @@ class AiModerationCog(commands.Cog):
         "KICK": "kick_members",
         "BAN": "ban_members",
     }
-    _SUPPORTED_IMAGE_CONTENT_TYPES = frozenset({"image/gif", "image/jpeg", "image/png", "image/webp"})
+    # Keep this list aligned with the formats decoded by Muxivo Core.  GIF is
+    # intentionally excluded: animated images are not accepted by the media
+    # validator and must not turn a Discord message into a failed API request.
+    _SUPPORTED_IMAGE_CONTENT_TYPES = frozenset({"image/jpeg", "image/png", "image/webp"})
 
     def __init__(self, bot: commands.Bot, settings_service: AiModerationSettingsService, channel_service: ChannelService, queue: AiModerationQueue, context_builder: UserModerationContextBuilder, punishment_repository: PunishmentRepositoryInterface, ai_repository: AiModerationRepositoryInterface | None = None) -> None:
         self._bot = bot

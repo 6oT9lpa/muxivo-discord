@@ -82,6 +82,24 @@ def test_discord_attachment_metadata_comes_from_attachment_properties() -> None:
     assert "attacker.example/fake.png" not in str(attachments[0].download_url)
 
 
+def test_discord_attachment_skips_unsupported_animated_gif() -> None:
+    message = SimpleNamespace(
+        attachments=(
+            SimpleNamespace(
+                id=12,
+                url="https://cdn.discordapp.com/attachments/1/2/animated.gif",
+                filename="animated.gif",
+                content_type="image/gif",
+                size=100,
+                width=10,
+                height=20,
+            ),
+        ),
+    )
+
+    assert AiModerationCog._media_attachments(message) == ()
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("attachments", "expected_path"),
