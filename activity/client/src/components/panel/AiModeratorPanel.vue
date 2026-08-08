@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { Check, Hash, Plus, ShieldCheck, Trash2 } from "@lucide/vue";
 import RevealOnScroll from "../common/RevealOnScroll.vue";
 import PanelTabNav from "./PanelTabNav.vue";
@@ -25,6 +25,11 @@ const blacklistDraft = ref("");
 const domainDraft = ref("");
 const status = ref("");
 const settings = computed(() => activity.aiModerator);
+let isHydrating = true;
+let policySaveTimer: number | undefined;
+let channelsSaveTimer: number | undefined;
+let savedPolicySignature = "";
+let savedChannelsSignature = "";
 const actionOptions = computed(() => (["IGNORE", "LOG", "REVIEW", "WARN", "DELETE", "DELETE_WARN", "TIMEOUT", "KICK", "BAN"] as AiModerationAction[])
   .filter((value) => !["TIMEOUT", "KICK", "BAN"].includes(value) || (moderationPolicy.enforcement_mode === "ELEVATED" && moderationPolicy.beta_enforcement_acknowledged && ({ TIMEOUT: moderationPolicy.allow_automated_timeout, KICK: moderationPolicy.allow_automated_kick, BAN: moderationPolicy.allow_automated_ban }[value] ?? false)))
   .map((value) => ({ value, labelKey: `ai.action.${value}` })));
@@ -52,9 +57,26 @@ const exclusionSections = computed(() => ([
 const moderationPolicy = reactive<AiModerationPolicy>(emptyPolicy());
 
 watch(settings, (value) => {
+  isHydrating = true;
   selectedChannels.value = visibleSelectedChannels(value?.channels ?? []);
   Object.assign(moderationPolicy, clonePolicy(value?.policy));
+  savedPolicySignature = policySignature();
+  savedChannelsSignature = channelsSignature();
+  void nextTick().then(() => { isHydrating = false; });
 }, { immediate: true });
+
+watch(moderationPolicy, () => {
+  if (!isHydrating) schedulePolicySave();
+}, { deep: true });
+
+watch(selectedChannels, () => {
+  if (!isHydrating) scheduleChannelsSave();
+}, { deep: true });
+
+onBeforeUnmount(() => {
+  if (policySaveTimer) window.clearTimeout(policySaveTimer);
+  if (channelsSaveTimer) window.clearTimeout(channelsSaveTimer);
+});
 
 
 function policy(riskThreshold: number, minAction: AiModerationAction, maxAction: AiModerationAction): AiModerationLabelPolicy {
@@ -133,13 +155,35 @@ function setMaximumAction(label: string, value: AiModerationAction) {
   if (actionRank[value] < actionRank[current.min_action]) current.min_action = value;
 }
 
-async function saveChannels() {
+function policySignature() { return JSON.stringify(clonePolicy(moderationPolicy)); }
+function channelsSignature() { return JSON.stringify([...visibleSelectedChannels(selectedChannels.value)].sort()); }
+
+function schedulePolicySave() {
+  if (policySignature() === savedPolicySignature) return;
+  if (policySaveTimer) window.clearTimeout(policySaveTimer);
+  status.value = t("ai.autosave_saving");
+  policySaveTimer = window.setTimeout(() => { void savePolicyAutomatically(); }, 650);
+}
+
+function scheduleChannelsSave() {
+  if (channelsSignature() === savedChannelsSignature) return;
+  if (channelsSaveTimer) window.clearTimeout(channelsSaveTimer);
+  status.value = t("ai.autosave_saving");
+  channelsSaveTimer = window.setTimeout(() => { void saveChannelsAutomatically(); }, 650);
+}
+
+async function saveChannelsAutomatically() {
+  const signature = channelsSignature();
+  if (signature === savedChannelsSignature) return;
   try {
     selectedChannels.value = visibleSelectedChannels(selectedChannels.value);
     await activity.saveAiModeratorChannelValues(selectedChannels.value);
-    status.value = t("ai.channels_saved");
+    savedChannelsSignature = channelsSignature();
+    status.value = t("ai.autosave_saved");
   } catch (error) {
     status.value = error instanceof Error ? error.message : t("ai.channels_failed");
+  } finally {
+    if (channelsSignature() !== savedChannelsSignature) scheduleChannelsSave();
   }
 }
 
@@ -149,12 +193,17 @@ function visibleSelectedChannels(channelIds: string[]): string[] {
   return channelIds.filter((channelId) => availableIds.has(channelId));
 }
 
-async function savePolicy(message: string) {
+async function savePolicyAutomatically() {
+  const signature = policySignature();
+  if (signature === savedPolicySignature) return;
   try {
     await activity.saveAiModeratorPolicyValue(clonePolicy(moderationPolicy));
-    status.value = message;
+    savedPolicySignature = policySignature();
+    status.value = t("ai.autosave_saved");
   } catch (error) {
     status.value = error instanceof Error ? error.message : t("ai.policy_failed");
+  } finally {
+    if (policySignature() !== savedPolicySignature) schedulePolicySave();
   }
 }
 
@@ -241,7 +290,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
         </label>
       </div>
       <div v-else class="ai-empty-state"><Hash :size="22" /><span>{{ $t("ai.no_channels") }}</span></div>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="saveChannels">{{ $t("ai.save_channels") }}</button></div>
     </div>
 
     <div v-else-if="activeTab === 'policy'" class="muxivo-coreation-workspace">
@@ -262,7 +310,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
         <label><span>{{ $t("ai.blocked_action") }}</span><select v-model="moderationPolicy.blacklist_action"><option v-for="action in actionOptions" :key="action.value" :value="action.value">{{ $t(action.labelKey) }}</option></select></label>
         <label><span>{{ $t("ai.domain_action") }}</span><select v-model="moderationPolicy.unapproved_domain_action"><option v-for="action in actionOptions" :key="action.value" :value="action.value">{{ $t(action.labelKey) }}</option></select></label>
       </div>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.policy_saved'))">{{ $t("ai.save_policy") }}</button></div>
     </div>
 
     <div v-else-if="activeTab === 'blacklist'" class="muxivo-coreation-workspace">
@@ -270,7 +317,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="ai-token-input"><input v-model="blacklistDraft" maxlength="253" :placeholder="$t('ai.add_word')" @keyup.enter.prevent="addBlacklistWords" /><button class="ghost-button" type="button" @click="addBlacklistWords"><Plus :size="16" /> {{ $t("ai.add") }}</button></div>
       <div v-if="moderationPolicy.blacklist_words.length" class="ai-token-list"><span v-for="word in moderationPolicy.blacklist_words" :key="word" class="ai-token">{{ word }}<button type="button" :aria-label="$t('ai.remove_value', { value: word })" @click="moderationPolicy.blacklist_words = removeValue(moderationPolicy.blacklist_words, word)"><Trash2 :size="14" /></button></span></div>
       <div v-else class="ai-empty-state"><ShieldCheck :size="22" /><span>{{ $t("ai.no_blocked") }}</span></div>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.blocked_saved'))">{{ $t("ai.save_blocked") }}</button></div>
     </div>
 
     <div v-else-if="activeTab === 'domains'" class="muxivo-coreation-workspace">
@@ -278,7 +324,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="ai-token-input"><input v-model="domainDraft" maxlength="253" placeholder="example.com" @keyup.enter.prevent="addDomains" /><button class="ghost-button" type="button" @click="addDomains"><Plus :size="16" /> {{ $t("ai.add") }}</button></div>
       <div v-if="moderationPolicy.allowed_domains.length" class="ai-token-list"><span v-for="domain in moderationPolicy.allowed_domains" :key="domain" class="ai-token">{{ domain }}<button type="button" :aria-label="$t('ai.remove_value', { value: domain })" @click="moderationPolicy.allowed_domains = removeValue(moderationPolicy.allowed_domains, domain)"><Trash2 :size="14" /></button></span></div>
       <div v-else class="ai-empty-state"><Hash :size="22" /><span>{{ $t("ai.all_links_review") }}</span></div>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.domains_saved'))">{{ $t("ai.save_domains") }}</button></div>
     </div>
 
     <div v-else-if="activeTab === 'exceptions'" class="muxivo-coreation-workspace">
@@ -289,7 +334,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       </div>
       <div class="ai-policy-controls"><label><span>{{ $t('ai.exclusions.escalation_score') }}</span><small>{{ $t('ai.exclusions.escalation_score_help') }}</small><input v-model.number="moderationPolicy.escalation_score_threshold" type="number" min="0.1" max="1000" step="0.1" /></label><label><span>{{ $t('ai.exclusions.half_life') }}</span><small>{{ $t('ai.exclusions.half_life_help') }}</small><input v-model.number="moderationPolicy.escalation_half_life_days" type="number" min="1" max="3650" step="1" /></label></div>
       <article v-for="section in exclusionSections" :key="section.key" class="ai-exclusion-picker"><div><h3>{{ $t(section.titleKey) }}</h3><p>{{ $t(section.helpKey) }}</p></div><SearchableSelector :options="section.candidates" :trigger-label="$t('ai.exclusions.choose')" :search-placeholder="$t(section.placeholderKey)" :empty-label="$t('ai.exclusions.no_matches')" :aria-label="$t(section.titleKey)" @select="addExcludedSelection(section.key, $event)" /><div v-if="section.values.length" class="ai-token-list"><span v-for="value in section.values" :key="value" class="ai-token">{{ exclusionLabel(section.key, value) }} <small>· {{ value }}</small><button type="button" :aria-label="$t('ai.remove_value', { value })" @click="moderationPolicy[section.key === 'user' ? 'excluded_user_ids' : section.key === 'role' ? 'excluded_role_ids' : 'excluded_channel_ids'] = removeValue(section.values, value)"><Trash2 :size="14" /></button></span></div></article>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.exclusions.saved'))">{{ $t('ai.exclusions.save') }}</button></div>
     </div>
 
     <div v-else-if="activeTab === 'actions'" class="muxivo-coreation-workspace">
@@ -297,7 +341,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="ai-rule-list">
         <article v-for="label in labelDefinitions" :key="label.key" class="ai-rule-card"><div><strong>{{ $t(label.titleKey) }}</strong><span>{{ $t(label.descriptionKey) }}</span></div><label><span>{{ $t("ai.at_least") }}</span><select :value="policyFor(label.key).min_action" @change="setMinimumAction(label.key, ($event.target as HTMLSelectElement).value as AiModerationAction)"><option v-for="action in actionOptions" :key="action.value" :value="action.value">{{ $t(action.labelKey) }}</option></select></label><label><span>{{ $t("ai.at_most") }}</span><select :value="policyFor(label.key).max_action" @change="setMaximumAction(label.key, ($event.target as HTMLSelectElement).value as AiModerationAction)"><option v-for="action in actionOptions" :key="action.value" :value="action.value">{{ $t(action.labelKey) }}</option></select></label></article>
       </div>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.actions_saved'))">{{ $t("ai.save_actions") }}</button></div>
     </div>
 
     <div v-else-if="activeTab === 'risk'" class="muxivo-coreation-workspace">
@@ -305,7 +348,6 @@ function exclusionLabel(kind: ExclusionKind, id: string) {
       <div class="ai-risk-list">
         <label v-for="label in labelDefinitions" :key="label.key" class="ai-risk-card"><span><strong>{{ $t(label.titleKey) }}</strong><small>{{ $t(label.descriptionKey) }}</small></span><input v-model.number="policyFor(label.key).risk_threshold" type="range" min="0" max="100" step="1" /><output>{{ policyFor(label.key).risk_threshold }}</output></label>
       </div>
-      <div class="form-actions"><button class="primary-button" type="button" :disabled="activity.moduleLoading" @click="savePolicy($t('ai.risk_saved'))">{{ $t("ai.save_risk") }}</button></div>
     </div>
 
     <div v-else class="muxivo-coreation-workspace">
