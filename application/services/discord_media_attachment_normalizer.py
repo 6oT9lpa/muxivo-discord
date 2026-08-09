@@ -38,7 +38,10 @@ class DiscordMediaAttachmentNormalizer:
         ".webp": "image/webp",
     }
     _DISCORD_MEDIA_HOSTS = frozenset({"cdn.discordapp.com", "media.discordapp.net"})
-    _HTTPS_URL = re.compile(r"https://[^\s<>]+", re.IGNORECASE)
+    # Stop at Markdown link delimiters too: Discord retains `[label](URL)` in
+    # message.content, and treating both URLs plus `](` as one URL corrupts
+    # signed CDN query parameters.
+    _HTTPS_URL = re.compile(r"https://[^\s<>\[\]()+]+", re.IGNORECASE)
 
     @classmethod
     def normalize_many(cls, attachments: Iterable[DiscordAttachment]) -> tuple[MediaAttachmentRequest, ...]:

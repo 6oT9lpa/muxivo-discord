@@ -120,6 +120,16 @@ def test_non_discord_image_url_is_not_downloaded_by_bot() -> None:
     assert AiModerationCog._media_attachments(message) == ()
 
 
+def test_discord_cdn_gif_markdown_link_keeps_signed_url_intact() -> None:
+    url = "https://cdn.discordapp.com/attachments/1/2/image.gif?ex=abc&is=def&hm=0123"
+    message = SimpleNamespace(attachments=(), content=f"[{url}]({url})")
+
+    attachments = AiModerationCog._media_attachments(message)
+
+    assert len(attachments) == 1
+    assert str(attachments[0].download_url) == url
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("attachments", "expected_path"),
