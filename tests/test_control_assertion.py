@@ -88,6 +88,35 @@ def test_native_platform_operation_requires_a_platform_subject() -> None:
         )
 
 
+def test_resource_bound_operation_requires_and_returns_a_platform_resource_identifier() -> (
+    None
+):
+    payload = claims()
+    payload["platform_resource_id"] = "123456789012345678"
+
+    assertion = verify_control_assertion(
+        token(payload),
+        signing_key=KEY,
+        expected_resource="console.platform_connections",
+        expected_action="manage",
+        now=1_700_000_001,
+        require_platform_resource_id=True,
+    )
+
+    assert assertion.platform_resource_id == "123456789012345678"
+
+    payload.pop("platform_resource_id")
+    with pytest.raises(ControlAssertionRejectedError):
+        verify_control_assertion(
+            token(payload),
+            signing_key=KEY,
+            expected_resource="console.platform_connections",
+            expected_action="manage",
+            now=1_700_000_001,
+            require_platform_resource_id=True,
+        )
+
+
 @pytest.mark.parametrize(
     "mutation", ("signature", "audience", "expiry", "subject", "resource")
 )
