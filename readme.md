@@ -96,7 +96,22 @@ Activity client build values:
 ```env
 VITE_DISCORD_CLIENT_ID=your_discord_application_client_id
 VITE_API_BASE_URL=
+VITE_MUXIVO_CONSOLE_URL=https://console.example.com
 ```
+
+Console-to-Discord Control API values:
+
+```env
+# The Console and Discord Activity API must receive the same base64-encoded,
+# randomly generated 32-byte value. Keep it server-side; it is never a browser value.
+MUXIVO_DISCORD_CONTROL_SIGNING_KEY=replace_with_a_shared_base64_32_byte_key
+```
+
+The `activity-api` exposes `POST /control/v1/organizations/{organization_id}/connections/verify`
+only for short-lived, HMAC-signed assertions from Muxivo Console. It verifies the
+linked Discord identity's current native Administrator permission (or guild ownership)
+through Discord's bot API. The Activity bearer token and Console database are not used
+by this endpoint.
 
 Muxivo Core integration values:
 

@@ -104,6 +104,7 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_DISCORD_CLIENT_ID: ${DISCORD_CLIENT_ID:-}
+        VITE_MUXIVO_CONSOLE_URL: ${VITE_MUXIVO_CONSOLE_URL:-}
     container_name: muxivo-discord-activity-client
     restart: unless-stopped
     logging: *default-logging
