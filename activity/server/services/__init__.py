@@ -3,10 +3,13 @@ from activity.server.services.activity_role_service import ActivityRoleService
 from activity.server.services.auth_service import ActivityAuthService
 from activity.server.services.bot_settings_service import BotSettingsService
 from activity.server.services.channel_purpose_service import ChannelPurposeService
-from activity.server.services.creator_alert_publish_service import CreatorAlertPublishService
+from activity.server.services.creator_alert_publish_service import (
+    CreatorAlertPublishService,
+)
 from activity.server.services.creator_alert_service import CreatorAlertService
 from activity.server.services.dev_blog_service import DevBlogService
 from activity.server.services.discord_service import DiscordService
+from activity.server.services.discord_guild_authority import DiscordGuildAuthority
 from activity.server.services.health_service import ActivityHealthService
 from activity.server.services.integrations_service import IntegrationsService
 from activity.server.services.logs_service import LogsService
@@ -29,6 +32,7 @@ __all__ = [
     "CreatorAlertService",
     "DevBlogService",
     "DiscordService",
+    "DiscordGuildAuthority",
     "IntegrationsService",
     "LogsService",
     "VoiceRoomService",

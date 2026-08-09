@@ -12,7 +12,6 @@ from activity.server.utils.http_client import discord_async_client
 from infrastructure.config import get_config
 from infrastructure.logging import get_logger
 
-
 logger = get_logger(__name__)
 
 
@@ -60,8 +59,14 @@ class DiscordService:
                 await asyncio.sleep(retry_after)
 
         if response is None:
-            logger.error("Discord bot request did not return a response method=%s path=%s", method, path)
-            raise HTTPException(status_code=503, detail="Discord API response was not received")
+            logger.error(
+                "Discord bot request did not return a response method=%s path=%s",
+                method,
+                path,
+            )
+            raise HTTPException(
+                status_code=503, detail="Discord API response was not received"
+            )
 
         elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
         logger.info(
@@ -74,8 +79,15 @@ class DiscordService:
         if response.status_code == 204:
             return None
         if response.status_code >= 400:
-            logger.warning("Discord bot request failed method=%s path=%s status=%s", method, path, response.status_code)
-            raise HTTPException(status_code=response.status_code, detail="Discord API request failed")
+            logger.warning(
+                "Discord bot request failed method=%s path=%s status=%s",
+                method,
+                path,
+                response.status_code,
+            )
+            raise HTTPException(
+                status_code=response.status_code, detail="Discord API request failed"
+            )
         return response.json()
 
     async def safe_bot_request(
@@ -87,9 +99,16 @@ class DiscordService:
         json_body: Optional[dict[str, Any]] = None,
     ) -> Any:
         try:
-            return await self.bot_request(method, path, params=params, json_body=json_body)
+            return await self.bot_request(
+                method, path, params=params, json_body=json_body
+            )
         except HTTPException as exc:
-            logger.warning("Safe Discord request suppressed method=%s path=%s status=%s", method, path, exc.status_code)
+            logger.warning(
+                "Safe Discord request suppressed method=%s path=%s status=%s",
+                method,
+                path,
+                exc.status_code,
+            )
             return None
 
     async def list_channels(
@@ -97,15 +116,23 @@ class DiscordService:
         guild_id: str,
         kind: Optional[Literal["text", "voice", "moderation"]] = None,
     ) -> list[DiscordChannel]:
-        logger.info("Listing Discord channels guild_id=%s kind=%s", guild_id, kind or "all")
+        logger.info(
+            "Listing Discord channels guild_id=%s kind=%s", guild_id, kind or "all"
+        )
         channel_types = {
             "text": {0},
             "voice": {2},
             "moderation": {0, 5},
         }
-        channels = await self._cached_bot_resource("channels", guild_id, f"/guilds/{guild_id}/channels")
+        channels = await self._cached_bot_resource(
+            "channels", guild_id, f"/guilds/{guild_id}/channels"
+        )
         if kind:
-            channels = [channel for channel in channels if channel.get("type") in channel_types[kind]]
+            channels = [
+                channel
+                for channel in channels
+                if channel.get("type") in channel_types[kind]
+            ]
         return [
             DiscordChannel(
                 id=channel["id"],
@@ -114,22 +141,36 @@ class DiscordService:
                 position=channel.get("position", 0),
                 parent_id=channel.get("parent_id"),
             )
-            for channel in sorted(channels, key=lambda item: (item.get("position", 0), item.get("name", "")))
+            for channel in sorted(
+                channels,
+                key=lambda item: (item.get("position", 0), item.get("name", "")),
+            )
         ]
 
-    async def validate_text_channel_ids(self, guild_id: str, channel_ids: set[int]) -> None:
+    async def validate_text_channel_ids(
+        self, guild_id: str, channel_ids: set[int]
+    ) -> None:
         if not channel_ids:
             return
-        text_channel_ids = {int(channel.id) for channel in await self.list_channels(guild_id, "text")}
+        text_channel_ids = {
+            int(channel.id) for channel in await self.list_channels(guild_id, "text")
+        }
         if channel_ids.issubset(text_channel_ids):
             return
         logger.warning("Rejected non-guild text channel ids guild_id=%s", guild_id)
-        raise HTTPException(status_code=422, detail="Selected channels must be text channels from this server")
+        raise HTTPException(
+            status_code=422,
+            detail="Selected channels must be text channels from this server",
+        )
 
-    async def validate_moderation_channel_ids(self, guild_id: str, channel_ids: set[int]) -> None:
+    async def validate_moderation_channel_ids(
+        self, guild_id: str, channel_ids: set[int]
+    ) -> None:
         if not channel_ids:
             return
-        valid_channel_ids = await self.filter_moderation_channel_ids(guild_id, channel_ids)
+        valid_channel_ids = await self.filter_moderation_channel_ids(
+            guild_id, channel_ids
+        )
         if channel_ids == valid_channel_ids:
             return
         invalid_channel_ids = sorted(channel_ids - valid_channel_ids)
@@ -138,12 +179,20 @@ class DiscordService:
             guild_id,
             invalid_channel_ids,
         )
-        raise HTTPException(status_code=422, detail="Selected channels must be message channels from this server")
+        raise HTTPException(
+            status_code=422,
+            detail="Selected channels must be message channels from this server",
+        )
 
-    async def filter_moderation_channel_ids(self, guild_id: str, channel_ids: set[int]) -> set[int]:
+    async def filter_moderation_channel_ids(
+        self, guild_id: str, channel_ids: set[int]
+    ) -> set[int]:
         if not channel_ids:
             return set()
-        moderation_channel_ids = {int(channel.id) for channel in await self.list_channels(guild_id, "moderation")}
+        moderation_channel_ids = {
+            int(channel.id)
+            for channel in await self.list_channels(guild_id, "moderation")
+        }
         valid_channel_ids = channel_ids & moderation_channel_ids
         invalid_channel_ids = sorted(channel_ids - valid_channel_ids)
         if invalid_channel_ids:
@@ -156,7 +205,9 @@ class DiscordService:
 
     async def list_roles(self, guild_id: str) -> list[DiscordRole]:
         logger.info("Listing Discord roles guild_id=%s", guild_id)
-        roles = await self._cached_bot_resource("roles", guild_id, f"/guilds/{guild_id}/roles")
+        roles = await self._cached_bot_resource(
+            "roles", guild_id, f"/guilds/{guild_id}/roles"
+        )
         return [
             DiscordRole(
                 id=role["id"],
@@ -167,10 +218,14 @@ class DiscordService:
                 managed=role.get("managed", False),
                 mentionable=role.get("mentionable", False),
             )
-            for role in sorted(roles, key=lambda item: item.get("position", 0), reverse=True)
+            for role in sorted(
+                roles, key=lambda item: item.get("position", 0), reverse=True
+            )
         ]
 
-    async def search_members(self, guild_id: str, query: str, limit: int) -> list[DiscordMember]:
+    async def search_members(
+        self, guild_id: str, query: str, limit: int
+    ) -> list[DiscordMember]:
         query = query.strip()
         if not query:
             logger.info("Skipping empty Discord member search guild_id=%s", guild_id)
@@ -193,7 +248,9 @@ class DiscordService:
             for member in members
         ]
 
-    async def list_members(self, guild_id: str, limit: int = 1000) -> list[DiscordMember]:
+    async def list_members(
+        self, guild_id: str, limit: int = 1000
+    ) -> list[DiscordMember]:
         logger.info("Listing Discord members guild_id=%s limit=%s", guild_id, limit)
         members = await self.bot_request(
             "GET",
@@ -209,17 +266,38 @@ class DiscordService:
                 or member["user"].get("username", "unknown"),
                 avatar=member["user"].get("avatar"),
             )
-            for member in sorted(members, key=lambda item: (item.get("nick") or item["user"].get("global_name") or item["user"].get("username", "")).lower())
+            for member in sorted(
+                members,
+                key=lambda item: (
+                    item.get("nick")
+                    or item["user"].get("global_name")
+                    or item["user"].get("username", "")
+                ).lower(),
+            )
             if not member["user"].get("bot", False)
         ]
 
     async def fetch_member_role_ids(self, guild_id: str, user_id: str) -> set[int]:
-        logger.info("Fetching Discord member roles guild_id=%s user_id=%s", guild_id, user_id)
-        response = await self.safe_bot_request("GET", f"/guilds/{guild_id}/members/{user_id}")
+        logger.info(
+            "Fetching Discord member roles guild_id=%s user_id=%s", guild_id, user_id
+        )
+        response = await self.safe_bot_request(
+            "GET", f"/guilds/{guild_id}/members/{user_id}"
+        )
         if not response:
-            logger.warning("Discord member roles unavailable guild_id=%s user_id=%s", guild_id, user_id)
+            logger.warning(
+                "Discord member roles unavailable guild_id=%s user_id=%s",
+                guild_id,
+                user_id,
+            )
             return set()
         return {int(role_id) for role_id in response.get("roles", [])}
+
+    async def fetch_guild_owner_id(self, guild_id: str) -> str | None:
+        logger.info("Fetching Discord guild owner guild_id=%s", guild_id)
+        guild = await self.safe_bot_request("GET", f"/guilds/{guild_id}")
+        owner_id = guild.get("owner_id") if isinstance(guild, dict) else None
+        return owner_id if isinstance(owner_id, str) and owner_id.isdecimal() else None
 
     async def measure_latency(self) -> Optional[int]:
         token = get_config().discord_token.get_secret_value()
@@ -227,9 +305,14 @@ class DiscordService:
         started = time.perf_counter()
         try:
             async with discord_async_client(timeout=10) as client:
-                response = await client.get(f"{activity_server_config.discord_api_base}/gateway", headers=headers)
+                response = await client.get(
+                    f"{activity_server_config.discord_api_base}/gateway",
+                    headers=headers,
+                )
             if response.status_code >= 400:
-                logger.warning("Discord latency probe failed status=%s", response.status_code)
+                logger.warning(
+                    "Discord latency probe failed status=%s", response.status_code
+                )
                 return None
         except httpx.HTTPError:
             logger.exception("Discord latency probe raised HTTP error")
@@ -238,7 +321,9 @@ class DiscordService:
         logger.info("Discord latency measured latency_ms=%s", latency)
         return latency
 
-    async def _cached_bot_resource(self, resource: str, guild_id: str, path: str) -> Any:
+    async def _cached_bot_resource(
+        self, resource: str, guild_id: str, path: str
+    ) -> Any:
         now = time.monotonic()
         expired = [
             key
@@ -252,7 +337,11 @@ class DiscordService:
         cached = self._bot_resource_cache.get(cache_key)
         if cached:
             self._bot_resource_cache.move_to_end(cache_key)
-            logger.info("Discord bot resource cache hit resource=%s guild_id=%s", resource, guild_id)
+            logger.info(
+                "Discord bot resource cache hit resource=%s guild_id=%s",
+                resource,
+                guild_id,
+            )
             return cached[1]
 
         payload = await self.bot_request("GET", path)
@@ -260,7 +349,9 @@ class DiscordService:
         self._bot_resource_cache.move_to_end(cache_key)
         while len(self._bot_resource_cache) > self._CACHE_MAX_ENTRIES:
             self._bot_resource_cache.popitem(last=False)
-        logger.info("Discord bot resource cached resource=%s guild_id=%s", resource, guild_id)
+        logger.info(
+            "Discord bot resource cached resource=%s guild_id=%s", resource, guild_id
+        )
         return payload
 
     def _retry_after_seconds(self, response: httpx.Response) -> float:
@@ -268,7 +359,9 @@ class DiscordService:
             payload = response.json()
         except ValueError:
             payload = {}
-        retry_after = payload.get("retry_after") or response.headers.get("Retry-After") or 1
+        retry_after = (
+            payload.get("retry_after") or response.headers.get("Retry-After") or 1
+        )
         try:
             return min(max(float(retry_after), 0.25), 5)
         except (TypeError, ValueError):
