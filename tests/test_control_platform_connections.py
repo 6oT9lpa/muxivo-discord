@@ -138,7 +138,14 @@ def test_lists_browser_ready_modules_with_a_read_assertion(monkeypatch) -> None:
                 "platform": "discord",
                 "capability": "view",
                 "status": "available",
-            }
+            },
+            {
+                "key": "discord.dashboard-summary",
+                "display_name": "Dashboard summary",
+                "platform": "discord",
+                "capability": "view",
+                "status": "available",
+            },
         ]
     }
 
@@ -166,3 +173,50 @@ def test_returns_health_only_with_a_read_assertion(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"guild_id": "0", "signals": []}
+
+
+def test_returns_dashboard_summary_only_for_the_assertion_bound_guild(
+    monkeypatch,
+) -> None:
+    organization_id = str(uuid4())
+    guild_id = "123456789012345678"
+    client = create_client(monkeypatch, verified=True)
+
+    class FakeDashboardService:
+        async def get_control_summary(
+            self, requested_guild_id: int
+        ) -> dict[str, int | None]:
+            assert requested_guild_id == int(guild_id)
+            return {
+                "messages_today": 42,
+                "ai_flagged_today": 3,
+                "creator_sources": 2,
+                "bot_latency_ms": 12,
+            }
+
+    monkeypatch.setattr(control, "dashboard_service", FakeDashboardService())
+    response = client.get(
+        f"/control/v1/organizations/{organization_id}/connections/{guild_id}/dashboard",
+        headers={
+            "Authorization": f"Bearer {make_token(organization_id, resource='console.control_modules', action='read', platform_resource_id=guild_id)}"
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["metrics"]["messages_today"] == 42
+
+
+def test_rejects_dashboard_request_when_the_signed_guild_does_not_match(
+    monkeypatch,
+) -> None:
+    organization_id = str(uuid4())
+    client = create_client(monkeypatch, verified=True)
+
+    response = client.get(
+        f"/control/v1/organizations/{organization_id}/connections/123/dashboard",
+        headers={
+            "Authorization": f"Bearer {make_token(organization_id, resource='console.control_modules', action='read', platform_resource_id='456')}"
+        },
+    )
+
+    assert response.status_code == 403

@@ -13,6 +13,7 @@ from activity.server.control_auth import (
     verify_control_assertion,
 )
 from activity.server.services.discord_guild_authority import DiscordGuildAuthority
+from activity.server.services.dashboard_service import ActivityDashboardService
 from activity.server.services.health_service import ActivityHealthService
 
 logger = logging.getLogger(__name__)
@@ -20,6 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/control/v1", tags=["control"])
 authority = DiscordGuildAuthority()
 health_service = ActivityHealthService()
+dashboard_service = ActivityDashboardService()
 
 _CONTROL_MODULES = {
     "items": [
@@ -29,7 +31,14 @@ _CONTROL_MODULES = {
             "platform": "discord",
             "capability": "view",
             "status": "available",
-        }
+        },
+        {
+            "key": "discord.dashboard-summary",
+            "display_name": "Dashboard summary",
+            "platform": "discord",
+            "capability": "view",
+            "status": "available",
+        },
     ]
 }
 
@@ -86,8 +95,35 @@ async def get_platform_health(
     return (await health_service.get_platform_health()).model_dump(mode="json")
 
 
+@router.get("/organizations/{organization_id}/connections/{guild_id}/dashboard")
+async def get_dashboard_summary(
+    organization_id: UUID,
+    guild_id: str,
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, object]:
+    """Return safe aggregate metrics for one assertion-bound Discord guild."""
+    if not guild_id.isdecimal() or len(guild_id) > 20:
+        raise HTTPException(status_code=422, detail="Invalid Discord guild identifier")
+    assertion = _verify_request_assertion(
+        authorization, require_platform_resource_id=True
+    )
+    _require_assertion_organization(assertion.organization_id, organization_id)
+    if assertion.platform_resource_id != guild_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Control assertion is not authorized for this platform resource",
+        )
+    return {
+        "guild_id": guild_id,
+        "metrics": await dashboard_service.get_control_summary(int(guild_id)),
+    }
+
+
 def _verify_request_assertion(
-    authorization: str | None, *, require_platform_subject: bool = False
+    authorization: str | None,
+    *,
+    require_platform_subject: bool = False,
+    require_platform_resource_id: bool = False,
 ):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Control assertion is required")
@@ -102,6 +138,7 @@ def _verify_request_assertion(
             ),
             expected_action="manage" if require_platform_subject else "read",
             require_platform_subject=require_platform_subject,
+            require_platform_resource_id=require_platform_resource_id,
         )
     except ControlAssertionRejectedError as error:
         raise HTTPException(

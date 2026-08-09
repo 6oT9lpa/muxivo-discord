@@ -13,7 +13,6 @@ from activity.server.services.discord_service import DiscordService
 from activity.server.utils.rbac import MODULE_ORDER
 from infrastructure.logging import get_logger
 
-
 logger = get_logger(__name__)
 
 
@@ -22,18 +21,41 @@ class ActivityDashboardService:
         self._access_service = ActivityAccessService()
         self._discord = DiscordService()
 
-    async def get_dashboard(self, guild_id: int, access_token: str) -> ActivityDashboardResponse:
+    async def get_dashboard(
+        self, guild_id: int, access_token: str
+    ) -> ActivityDashboardResponse:
         logger.info("Loading Activity dashboard guild_id=%s", guild_id)
-        _, access = await self._access_service.ensure_module_access(access_token, str(guild_id), "dashboard")
+        _, access = await self._access_service.ensure_module_access(
+            access_token, str(guild_id), "dashboard"
+        )
         metrics = await self._build_metrics(guild_id, access)
         # Audit details often contain moderation reasons and member identifiers.
         # They belong to the Logs permission, not to the public dashboard tab.
         audit = (
             await self._query_audit_events(guild_id, limit=5, offset=0)
-            if self._access_service._permission_allows(access.get("permissions", {}).get("logs", "disabled"), "view")
+            if self._access_service._permission_allows(
+                access.get("permissions", {}).get("logs", "disabled"), "view"
+            )
             else ActivityAuditPage(items=[], total=0, limit=5, offset=0)
         )
         return ActivityDashboardResponse(metrics=metrics, audit=audit.items)
+
+    async def get_control_summary(self, guild_id: int) -> dict[str, int | None]:
+        """Return the non-sensitive dashboard subset for the signed Console API.
+
+        Console authorization is evaluated before this method is reached.  This
+        deliberately omits Activity-role-dependent module counts and all audit
+        rows, which may expose user identifiers or moderation details.
+        """
+        logger.info("Loading Console dashboard summary guild_id=%s", guild_id)
+        return {
+            "messages_today": await self._count_messages_today(guild_id),
+            "ai_flagged_today": await self._count_messages_today(
+                guild_id, flagged=True
+            ),
+            "creator_sources": await self._count_creator_sources(guild_id),
+            "bot_latency_ms": await self._discord.measure_latency(),
+        }
 
     async def list_audit_events(
         self,
@@ -47,8 +69,15 @@ class ActivityDashboardService:
         limit: int = 20,
         offset: int = 0,
     ) -> ActivityAuditPage:
-        logger.info("Listing Activity audit events guild_id=%s limit=%s offset=%s", guild_id, limit, offset)
-        await self._access_service.ensure_module_access(access_token, str(guild_id), "logs")
+        logger.info(
+            "Listing Activity audit events guild_id=%s limit=%s offset=%s",
+            guild_id,
+            limit,
+            offset,
+        )
+        await self._access_service.ensure_module_access(
+            access_token, str(guild_id), "logs"
+        )
         return await self._query_audit_events(
             guild_id,
             query=query,
@@ -59,7 +88,9 @@ class ActivityDashboardService:
             offset=offset,
         )
 
-    async def _build_metrics(self, guild_id: int, access: dict[str, Any]) -> ActivityDashboardMetric:
+    async def _build_metrics(
+        self, guild_id: int, access: dict[str, Any]
+    ) -> ActivityDashboardMetric:
         modules_ready = len(access.get("available_modules", []))
         modules_total = len(MODULE_ORDER)
         permissions = access.get("permissions", {})
@@ -69,9 +100,19 @@ class ActivityDashboardService:
         can_view_creator_sources = self._access_service._permission_allows(
             permissions.get("creator-alerts", "disabled"), "view"
         )
-        ai_checks_today = await self._count_messages_today(guild_id) if can_view_stats else 0
-        ai_flagged_today = await self._count_messages_today(guild_id, flagged=True) if can_view_stats else 0
-        creator_sources = await self._count_creator_sources(guild_id) if can_view_creator_sources else 0
+        ai_checks_today = (
+            await self._count_messages_today(guild_id) if can_view_stats else 0
+        )
+        ai_flagged_today = (
+            await self._count_messages_today(guild_id, flagged=True)
+            if can_view_stats
+            else 0
+        )
+        creator_sources = (
+            await self._count_creator_sources(guild_id)
+            if can_view_creator_sources
+            else 0
+        )
         return ActivityDashboardMetric(
             modules_ready=modules_ready,
             modules_total=modules_total,
@@ -81,7 +122,9 @@ class ActivityDashboardService:
             bot_latency_ms=await self._discord.measure_latency(),
         )
 
-    async def _count_messages_today(self, guild_id: int, flagged: Optional[bool] = None) -> int:
+    async def _count_messages_today(
+        self, guild_id: int, flagged: Optional[bool] = None
+    ) -> int:
         # Dashboard must stay available even while optional analytics tables are absent.
         clauses = ["guild_id = ?", "DATE(timestamp) = CURRENT_DATE"]
         params: list[Any] = [guild_id]
@@ -111,7 +154,11 @@ class ActivityDashboardService:
             )
             return int(row["total"] if row else 0)
         except Exception as exc:
-            logger.warning("Dashboard creator metric unavailable guild_id=%s error=%s", guild_id, exc)
+            logger.warning(
+                "Dashboard creator metric unavailable guild_id=%s error=%s",
+                guild_id,
+                exc,
+            )
             return 0
 
     async def _query_audit_events(
@@ -130,7 +177,9 @@ class ActivityDashboardService:
 
         if query.strip():
             like = f"%{query.strip()}%"
-            clauses.append("(event_type LIKE ? OR details LIKE ? OR target_name LIKE ?)")
+            clauses.append(
+                "(event_type LIKE ? OR details LIKE ? OR target_name LIKE ?)"
+            )
             params.extend([like, like, like])
         if actor.strip():
             like = f"%{actor.strip()}%"
@@ -160,7 +209,9 @@ class ActivityDashboardService:
                 (*params, limit, offset),
             )
         except Exception as exc:
-            logger.warning("Dashboard audit stream unavailable guild_id=%s error=%s", guild_id, exc)
+            logger.warning(
+                "Dashboard audit stream unavailable guild_id=%s error=%s", guild_id, exc
+            )
             total_row = {"total": 0}
             rows = []
         return ActivityAuditPage(
