@@ -20,7 +20,7 @@ class ControlAssertionRejectedError(PermissionError):
 class ControlAssertion:
     actor_id: UUID
     organization_id: UUID
-    platform_subject: str
+    platform_subject: str | None
     correlation_id: UUID
 
 
@@ -33,6 +33,7 @@ def verify_control_assertion(
     now: float | None = None,
     expected_issuer: str = "muxivo-console",
     expected_audience: str = "muxivo-discord-control",
+    require_platform_subject: bool = False,
 ) -> ControlAssertion:
     """Validate the exact assertion context before any Discord-native lookup."""
     if len(signing_key) < 32 or not token or len(token) > 4096:
@@ -68,14 +69,19 @@ def verify_control_assertion(
             or claims["aud"] != expected_audience
             or claims["resource"] != expected_resource
             or claims["action"] != expected_action
-            or not isinstance(claims["platform_subject"], str)
-            or not claims["platform_subject"].isdigit()
         ):
             raise ValueError("Invalid assertion claims.")
+        platform_subject = claims.get("platform_subject")
+        if platform_subject is not None and (
+            not isinstance(platform_subject, str) or not platform_subject.isdigit()
+        ):
+            raise ValueError("Invalid assertion claims.")
+        if require_platform_subject and platform_subject is None:
+            raise ValueError("A platform subject is required.")
         return ControlAssertion(
             actor_id=UUID(claims["sub"]),
             organization_id=UUID(claims["organization_id"]),
-            platform_subject=claims["platform_subject"],
+            platform_subject=platform_subject,
             correlation_id=UUID(claims["correlation_id"]),
         )
     except (KeyError, TypeError, ValueError) as error:

@@ -116,3 +116,53 @@ def test_rejects_missing_or_invalid_control_assertion(monkeypatch) -> None:
 
     assert missing.status_code == 401
     assert malformed.status_code == 401
+
+
+def test_lists_browser_ready_modules_with_a_read_assertion(monkeypatch) -> None:
+    organization_id = str(uuid4())
+    client = create_client(monkeypatch, verified=True)
+
+    response = client.get(
+        f"/control/v1/organizations/{organization_id}/modules",
+        headers={
+            "Authorization": f"Bearer {make_token(organization_id, resource='console.control_modules', action='read')}"
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "items": [
+            {
+                "key": "discord.health",
+                "display_name": "Platform health",
+                "platform": "discord",
+                "capability": "view",
+                "status": "available",
+            }
+        ]
+    }
+
+
+def test_returns_health_only_with_a_read_assertion(monkeypatch) -> None:
+    organization_id = str(uuid4())
+    client = create_client(monkeypatch, verified=True)
+
+    class Snapshot:
+        def model_dump(self, *, mode: str) -> dict[str, object]:
+            assert mode == "json"
+            return {"guild_id": "0", "signals": []}
+
+    class FakeHealthService:
+        async def get_platform_health(self) -> Snapshot:
+            return Snapshot()
+
+    monkeypatch.setattr(control, "health_service", FakeHealthService())
+    response = client.get(
+        f"/control/v1/organizations/{organization_id}/health",
+        headers={
+            "Authorization": f"Bearer {make_token(organization_id, resource='console.control_modules', action='read')}"
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"guild_id": "0", "signals": []}

@@ -2,13 +2,15 @@ import time
 from typing import Optional
 
 from activity.server.dependencies import get_db
-from activity.server.schemas.activity import ActivityHealthResponse, ActivityHealthSignal
+from activity.server.schemas.activity import (
+    ActivityHealthResponse,
+    ActivityHealthSignal,
+)
 from activity.server.services.access_service import ActivityAccessService
 from activity.server.services.discord_service import DiscordService
 from activity.server.services.muxivo_core_health_probe import AiModeratorHealthProbe
 from infrastructure.config import get_config
 from infrastructure.logging import get_logger
-
 
 logger = get_logger(__name__)
 
@@ -23,9 +25,21 @@ class ActivityHealthService:
             config.muxivo_core_request_timeout_seconds,
         )
 
-    async def get_health(self, guild_id: str, access_token: str) -> ActivityHealthResponse:
+    async def get_health(
+        self, guild_id: str, access_token: str
+    ) -> ActivityHealthResponse:
         logger.info("Loading Activity health guild_id=%s", guild_id)
-        await self._access_service.ensure_module_access(access_token, guild_id, "health")
+        await self._access_service.ensure_module_access(
+            access_token, guild_id, "health"
+        )
+        return await self.get_platform_health(guild_id)
+
+    async def get_platform_health(self, guild_id: str = "0") -> ActivityHealthResponse:
+        """Collect aggregate platform health for trusted server-side presenters.
+
+        Public callers must first pass either the Activity authorization in
+        ``get_health`` or the signed Console Control API authorization.
+        """
 
         discord_latency = await self._discord.measure_latency()
         database_latency = await self._measure_database_latency()
@@ -38,19 +52,31 @@ class ActivityHealthService:
             signals=[
                 ActivityHealthSignal(
                     name="Bot latency",
-                    value=f"{discord_latency} ms" if discord_latency is not None else "Unavailable",
+                    value=(
+                        f"{discord_latency} ms"
+                        if discord_latency is not None
+                        else "Unavailable"
+                    ),
                     status="operational" if discord_latency is not None else "degraded",
                     latency_ms=discord_latency,
                 ),
                 ActivityHealthSignal(
                     name="PostgreSQL",
-                    value=f"{database_latency} ms" if database_latency is not None else "Unavailable",
-                    status="operational" if database_latency is not None else "degraded",
+                    value=(
+                        f"{database_latency} ms"
+                        if database_latency is not None
+                        else "Unavailable"
+                    ),
+                    status=(
+                        "operational" if database_latency is not None else "degraded"
+                    ),
                     latency_ms=database_latency,
                 ),
                 ActivityHealthSignal(
                     name="Muxivo Core",
-                    value=f"{ai_latency} ms" if ai_latency is not None else "Unavailable",
+                    value=(
+                        f"{ai_latency} ms" if ai_latency is not None else "Unavailable"
+                    ),
                     status="operational" if ai_latency is not None else "degraded",
                     latency_ms=ai_latency,
                 ),

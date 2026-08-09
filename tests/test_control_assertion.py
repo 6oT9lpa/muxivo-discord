@@ -58,6 +58,36 @@ def test_accepts_exact_short_lived_signed_assertion() -> None:
     assert assertion.organization_id
 
 
+def test_catalog_assertion_does_not_require_a_platform_subject() -> None:
+    payload = claims()
+    payload.pop("platform_subject")
+
+    assertion = verify_control_assertion(
+        token(payload),
+        signing_key=KEY,
+        expected_resource="console.platform_connections",
+        expected_action="manage",
+        now=1_700_000_001,
+    )
+
+    assert assertion.platform_subject is None
+
+
+def test_native_platform_operation_requires_a_platform_subject() -> None:
+    payload = claims()
+    payload.pop("platform_subject")
+
+    with pytest.raises(ControlAssertionRejectedError):
+        verify_control_assertion(
+            token(payload),
+            signing_key=KEY,
+            expected_resource="console.platform_connections",
+            expected_action="manage",
+            now=1_700_000_001,
+            require_platform_subject=True,
+        )
+
+
 @pytest.mark.parametrize(
     "mutation", ("signature", "audience", "expiry", "subject", "resource")
 )
