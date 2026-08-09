@@ -47,6 +47,11 @@ class AiModeratorApiClient:
             )
         response.raise_for_status()
         data = response.json()
+        media_analysis_succeeded = any(
+            isinstance(attachment, dict)
+            and attachment.get("status") in {"analyzed", "duplicate"}
+            for attachment in data.get("attachments", ())
+        )
         return AiModerationDecision(
             event_id=data["dataset_event_id"],
             user_id=request.user_id,
@@ -67,6 +72,7 @@ class AiModeratorApiClient:
                 for warning in data.get("warnings", ())
                 if isinstance(warning, str)
             )[:8],
+            media_analysis_succeeded=media_analysis_succeeded,
             dry_run=data.get("execution_status") == "DRY_RUN",
         )
 

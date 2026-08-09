@@ -19,4 +19,7 @@ class AiModerationDecision(BaseModel):
     rule_matches: tuple[str, ...] = Field(default=(), max_length=32)
     execution_plan: tuple[str, ...] = Field(max_length=8)
     warnings: tuple[str, ...] = Field(default=(), max_length=8)
+    # Core can report an unavailable duplicate alongside an attachment whose
+    # OCR completed successfully. The presentation layer needs this distinction.
+    media_analysis_succeeded: bool = False
     dry_run: bool

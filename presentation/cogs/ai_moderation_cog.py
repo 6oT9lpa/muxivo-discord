@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+from collections import OrderedDict
 from datetime import datetime, timedelta
 
 import disnake
@@ -32,6 +34,9 @@ _MEDIA_ANALYSIS_UNAVAILABLE_CLASSIFICATION = "Media unavailable — no content d
 
 
 class AiModerationCog(commands.Cog):
+    _GIF_EMBED_HYDRATION_POLL_SECONDS = 1.0
+    _GIF_EMBED_HYDRATION_ATTEMPTS = 12
+    _HYDRATED_MEDIA_SUBMISSION_CACHE_SIZE = 10_000
     """Connect Discord messages, moderation decisions and audit logging."""
     _HIGH_IMPACT_ACTIONS = frozenset({"TIMEOUT", "KICK", "BAN"})
     _ACTION_PERMISSION = {
@@ -51,6 +56,11 @@ class AiModerationCog(commands.Cog):
         self._content_normalizer = DiscordMessageContentNormalizer()
         self._policy_enforcer = AiModerationPolicyEnforcer()
         self._flood_coordinator = FloodEnforcementCoordinator()
+        self._pending_media_hydration: dict[int, disnake.Message] = {}
+        self._media_hydration_tasks: dict[int, asyncio.Task[None]] = {}
+        # Stops a gateway UPDATE that arrives just after a successful fetch
+        # from creating a second CREATE moderation request for the same GIF.
+        self._submitted_hydrated_media_ids: OrderedDict[int, None] = OrderedDict()
 
     async def cog_load(self) -> None:
         await self._queue.start()
@@ -60,6 +70,12 @@ class AiModerationCog(commands.Cog):
 
     async def shutdown(self) -> None:
         self.restore_administrator_roles.cancel()
+        for task in self._media_hydration_tasks.values():
+            task.cancel()
+        await asyncio.gather(*self._media_hydration_tasks.values(), return_exceptions=True)
+        self._media_hydration_tasks.clear()
+        self._pending_media_hydration.clear()
+        self._submitted_hydrated_media_ids.clear()
         await self._queue.stop()
 
     @tasks.loop(minutes=1)
@@ -89,6 +105,9 @@ class AiModerationCog(commands.Cog):
             return
         if not await self._settings_service.is_enabled_for_channel(message.guild.id, message.channel.id):
             return
+        if self._should_wait_for_gif_embed(message):
+            self._schedule_media_hydration(message)
+            return
         request = await self._build_request(message, "CREATE")
         if request is None:
             return
@@ -98,6 +117,26 @@ class AiModerationCog(commands.Cog):
     @commands.Cog.listener()
     async def on_message_edit(self, before: disnake.Message, after: disnake.Message) -> None:
         if after.author.bot or after.guild is None or not isinstance(after.channel, (disnake.TextChannel, disnake.NewsChannel)):
+            return
+        if after.id in self._pending_media_hydration:
+            # Discord's GIF picker emits CREATE first and hydrates the embed in
+            # a later UPDATE.  Preserve that richer object for the delayed
+            # first moderation request; it is not a user edit.
+            self._pending_media_hydration[after.id] = after
+            return
+        if self._is_late_embed_hydration(before, after):
+            if after.id in self._submitted_hydrated_media_ids:
+                return
+            request = await self._build_request(after, "CREATE")
+            if request is not None and self._queue.submit(request):
+                self._mark_hydrated_media_submitted(after.id)
+                logger.info(
+                    "Discord media hydration completed by gateway update guild_id=%s message_id=%s",
+                    after.guild.id,
+                    after.id,
+                )
+            elif request is not None:
+                logger.warning("AI moderation queue rejected late hydrated media guild_id=%s message_id=%s", after.guild.id, after.id)
             return
         if not self._content_normalizer.changed(before, after):
             return
@@ -130,6 +169,7 @@ class AiModerationCog(commands.Cog):
         metadata["ocr_failure_mode"] = policy.ocr_failure_mode
         media_attachments = self._media_attachments(message) if policy.ocr_enabled else ()
         metadata["discord_attachment_count"] = len(message.attachments)
+        raw_text = self._media_text(message, media_attachments)
         return AiModerationRequest(
             guild_id=message.guild.id,
             channel_id=message.channel.id,
@@ -137,7 +177,7 @@ class AiModerationCog(commands.Cog):
             author_role_ids=tuple(role.id for role in getattr(message.author, "roles", ()) if role != message.guild.default_role),
             author_is_bot=message.author.bot,
             message_id=message.id,
-            raw_text=message.content,
+            raw_text=raw_text,
             created_at=message.created_at,
             author_created_at=user_context.account_created_at,
             member_joined_at=user_context.joined_guild_at,
@@ -158,6 +198,106 @@ class AiModerationCog(commands.Cog):
     @classmethod
     def _media_attachments(cls, message: disnake.Message):
         return DiscordMediaAttachmentNormalizer.normalize_message_media(message)
+
+    @classmethod
+    def _media_text(cls, message: disnake.Message, media_attachments):
+        """Exclude a submitted attachment's transport URL from text analysis."""
+        return DiscordMediaAttachmentNormalizer.message_text_without_media_urls(message, media_attachments)
+
+    @staticmethod
+    def _should_wait_for_gif_embed(message: disnake.Message) -> bool:
+        """Return true only for messages Discord may hydrate with a GIF embed."""
+        if getattr(message, "attachments", ()):
+            return False
+        content = str(getattr(message, "content", "") or "").casefold()
+        if not content:
+            return True
+        return "tenor.com/" in content or "giphy.com/" in content
+
+    def _schedule_media_hydration(self, message: disnake.Message) -> None:
+        if message.id in self._media_hydration_tasks:
+            self._pending_media_hydration[message.id] = message
+            return
+        self._pending_media_hydration[message.id] = message
+        task = asyncio.create_task(
+            self._submit_after_media_hydration(message.id),
+            name=f"discord-media-hydration-{message.id}",
+        )
+        self._media_hydration_tasks[message.id] = task
+
+    @classmethod
+    def _is_late_embed_hydration(cls, before: object, after: object) -> bool:
+        """Identify Discord's embed-only UPDATE after the polling window.
+
+        Native user edits change text, attachments or stickers and are handled
+        as UPDATE events below. Discord GIF hydration changes none of those
+        fields, but causes media to become available in an embed.
+        """
+        return (
+            not DiscordMessageContentNormalizer().changed(before, after)
+            and not cls._media_attachments(before)
+            and bool(cls._media_attachments(after))
+        )
+
+    def _mark_hydrated_media_submitted(self, message_id: int) -> None:
+        self._submitted_hydrated_media_ids[message_id] = None
+        self._submitted_hydrated_media_ids.move_to_end(message_id)
+        while len(self._submitted_hydrated_media_ids) > self._HYDRATED_MEDIA_SUBMISSION_CACHE_SIZE:
+            self._submitted_hydrated_media_ids.popitem(last=False)
+
+    async def _submit_after_media_hydration(self, message_id: int) -> None:
+        try:
+            message = self._pending_media_hydration.get(message_id)
+            if message is None:
+                return
+            media_was_hydrated = False
+            for attempt in range(self._GIF_EMBED_HYDRATION_ATTEMPTS):
+                if attempt:
+                    await asyncio.sleep(self._GIF_EMBED_HYDRATION_POLL_SECONDS)
+                # Gateway UPDATE usually populates the cached object. Fetching
+                # on every poll also handles a delayed UPDATE or reconnect.
+                pending = self._pending_media_hydration.get(message_id)
+                if pending is None:
+                    return
+                try:
+                    message = await pending.channel.fetch_message(message_id)
+                except (disnake.HTTPException, AttributeError):
+                    message = pending
+                media_attachments = self._media_attachments(message)
+                if media_attachments:
+                    media_was_hydrated = True
+                    logger.info(
+                        "Discord media hydration complete guild_id=%s message_id=%s attempts=%s media_count=%s",
+                        message.guild.id if message.guild is not None else "unknown",
+                        message_id,
+                        attempt + 1,
+                        len(media_attachments),
+                    )
+                    break
+            else:
+                logger.info(
+                    "Discord media hydration timed out without media guild_id=%s message_id=%s",
+                    message.guild.id if message.guild is not None else "unknown",
+                    message_id,
+                )
+            request = await self._build_request(message, "CREATE")
+            if request is not None:
+                if self._queue.submit(request):
+                    if media_was_hydrated:
+                        self._mark_hydrated_media_submitted(message_id)
+                else:
+                    logger.warning(
+                        "AI moderation queue rejected hydrated media guild_id=%s message_id=%s",
+                        message.guild.id if message.guild is not None else "unknown",
+                        message_id,
+                    )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Could not hydrate Discord media message_id=%s", message_id)
+        finally:
+            self._pending_media_hydration.pop(message_id, None)
+            self._media_hydration_tasks.pop(message_id, None)
 
     @commands.slash_command(name="set", description="AI moderation settings")
     @commands.has_permissions(administrator=True)
@@ -590,7 +730,8 @@ class AiModerationCog(commands.Cog):
         )
 
     async def _send_log(self, guild: disnake.Guild, request: AiModerationRequest, decision: AiModerationDecision, status: str) -> None:
-        content = request.raw_text.strip() or ("[attachment]" if request.has_attachments else "[empty message]")
+        attachment_caption, attachment_preview_url = self._media_log_presentation(request)
+        content = request.raw_text.strip() or attachment_caption or ("[attachment]" if request.has_attachments else "[empty message]")
         content = content[:1_000]
         jump_url = f"https://discord.com/channels/{guild.id}/{request.channel_id}/{request.message_id}"
         action_icon, action_title, color = self._action_presentation(decision.action)
@@ -642,13 +783,12 @@ class AiModerationCog(commands.Cog):
         elif request.reply_to_message_id:
             original_url = f"https://discord.com/channels/{guild.id}/{request.channel_id}/{request.reply_to_message_id}"
             builder.add_field("Message", f"[Open message being answered]({original_url})", inline=False)
-        embed = (
-            builder
-            .add_field("Answer" if is_reply else "Message", f"> {content}", inline=False)
-            .add_field("Classification", labels, inline=False)
-            .set_footer(f"{execution_context} • {status.title()} • {decision.latency_ms} ms")
-            .build()
-        )
+        builder.add_field("Answer" if is_reply else "Message", f"> {content}", inline=False)
+        builder.add_field("Classification", labels, inline=False)
+        builder.set_footer(f"{execution_context} • {status.title()} • {decision.latency_ms} ms")
+        if attachment_preview_url is not None:
+            builder.add_image(attachment_preview_url)
+        embed = builder.build()
         for purpose, channel in await self._resolve_log_channels(guild, request.channel_id):
             try:
                 await channel.send(embed=embed)
@@ -671,12 +811,24 @@ class AiModerationCog(commands.Cog):
         logger.error("AI moderation embed could not be delivered guild_id=%s message_id=%s", guild.id, request.message_id)
 
     @staticmethod
+    def _media_log_presentation(request: AiModerationRequest) -> tuple[str | None, str | None]:
+        """Return a readable media link and Discord embed preview URL for logs."""
+        for attachment in request.attachments:
+            url = str(attachment.download_url or "")
+            if not url.startswith("https://"):
+                continue
+            filename = str(attachment.file_name or "attachment")
+            escaped_name = filename.replace("\\", "\\\\").replace("[", "\\[").replace("]", "\\]").replace("(", "\\(").replace(")", "\\)")
+            return f"[{escaped_name}]({url})", url
+        return None, None
+
+    @staticmethod
     def _media_analysis_unavailable(
         request: AiModerationRequest,
         decision: AiModerationDecision,
     ) -> bool:
         """Do not present an unscanned attachment as a safe content decision."""
-        return request.has_attachments and any(
+        return request.has_attachments and not decision.media_analysis_succeeded and any(
             warning.startswith(_MEDIA_ANALYSIS_WARNING_PREFIX)
             for warning in decision.warnings
         )

@@ -6,9 +6,36 @@ import pytest
 
 from application.dto.ai_moderation_decision import AiModerationDecision
 from application.dto.ai_moderation_request import AiModerationRequest
+from application.dto.media_attachment_request import MediaAttachmentRequest
 from application.services.user_moderation_context_builder import UserModerationContextBuilder
 from core.domain.value_objects import PunishmentType
 from presentation.cogs.ai_moderation_cog import AiModerationCog
+
+
+def test_media_log_presentation_uses_file_link_and_preview_url() -> None:
+    request = AiModerationRequest(
+        guild_id=1,
+        channel_id=2,
+        user_id=3,
+        message_id=4,
+        raw_text="",
+        created_at=datetime.now(timezone.utc),
+        has_attachments=True,
+        attachment_count=1,
+        attachments=(
+            MediaAttachmentRequest(
+                attachment_id="gif-1",
+                download_url="https://cdn.discordapp.com/attachments/1/2/image.gif?ex=live",
+                file_name="image.gif",
+                content_type="image/gif",
+            ),
+        ),
+    )
+
+    caption, preview_url = AiModerationCog._media_log_presentation(request)
+
+    assert caption == "[image.gif](https://cdn.discordapp.com/attachments/1/2/image.gif?ex=live)"
+    assert preview_url == "https://cdn.discordapp.com/attachments/1/2/image.gif?ex=live"
 
 
 class _Bot:
@@ -179,6 +206,33 @@ async def test_attachment_download_failure_is_not_presented_as_safe() -> None:
     fields = {field.name: field.value for field in channel.embeds[0].fields}
     assert "Media analysis incomplete" in fields["Decision"]
     assert fields["Classification"] == "Media unavailable — no content decision"
+
+
+@pytest.mark.asyncio
+async def test_partial_media_failure_does_not_hide_successful_ocr_result() -> None:
+    settings = _Settings(); queue = _Queue(); punishments = _Punishments()
+    cog = AiModerationCog(_Bot(), settings, _ChannelService(), queue, UserModerationContextBuilder(punishments, _Events(settings)), punishments)
+    channel = _SentChannel()
+
+    async def fallback_destination(*_):
+        return [("source_channel", channel)]
+
+    cog._resolve_log_channels = fallback_destination
+    request = AiModerationRequest(
+        guild_id=1, channel_id=2, user_id=3, message_id=4, raw_text="",
+        created_at=datetime.now(timezone.utc), has_attachments=True,
+    )
+    decision = AiModerationDecision(
+        event_id=1, guild_id=1, user_id=3, message_id=4, risk_score=5,
+        action="LOG", primary_label="SAFE", labels=("SAFE",), execution_plan=("LOG",),
+        warnings=("media_download_unavailable",), media_analysis_succeeded=True, dry_run=False,
+    )
+
+    await cog._send_log(_Guild(1), request, decision, "SUCCESS")
+
+    fields = {field.name: field.value for field in channel.embeds[0].fields}
+    assert "Media analysis incomplete" not in fields["Decision"]
+    assert fields["Classification"] == "Safe"
 
 
 @pytest.mark.asyncio
