@@ -278,19 +278,26 @@ class DiscordService:
         ]
 
     async def fetch_member_role_ids(self, guild_id: str, user_id: str) -> set[int]:
+        role_ids = await self.fetch_member_role_ids_if_member(guild_id, user_id)
+        return role_ids or set()
+
+    async def fetch_member_role_ids_if_member(
+        self, guild_id: str, user_id: str
+    ) -> set[int] | None:
+        """Return roles for a current member, preserving an empty role assignment."""
         logger.info(
             "Fetching Discord member roles guild_id=%s user_id=%s", guild_id, user_id
         )
         response = await self.safe_bot_request(
             "GET", f"/guilds/{guild_id}/members/{user_id}"
         )
-        if not response:
+        if response is None:
             logger.warning(
                 "Discord member roles unavailable guild_id=%s user_id=%s",
                 guild_id,
                 user_id,
             )
-            return set()
+            return None
         return {int(role_id) for role_id in response.get("roles", [])}
 
     async def fetch_guild_owner_id(self, guild_id: str) -> str | None:

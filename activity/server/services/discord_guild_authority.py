@@ -21,7 +21,9 @@ class DiscordGuildAuthorityReader(Protocol):
 
     async def fetch_guild_owner_id(self, guild_id: str) -> str | None: ...
 
-    async def fetch_member_role_ids(self, guild_id: str, user_id: str) -> set[int]: ...
+    async def fetch_member_role_ids_if_member(
+        self, guild_id: str, user_id: str
+    ) -> set[int] | None: ...
 
     async def list_roles(self, guild_id: str) -> list[DiscordRole]: ...
 
@@ -47,8 +49,10 @@ class DiscordGuildAuthority:
         if owner_id == user_id:
             return True
 
-        member_role_ids = await self._discord.fetch_member_role_ids(guild_id, user_id)
-        if not member_role_ids:
+        member_role_ids = await self._discord.fetch_member_role_ids_if_member(
+            guild_id, user_id
+        )
+        if member_role_ids is None:
             logger.info(
                 "Discord native authority denied because subject is not a guild member guild_id=%s",
                 guild_id,

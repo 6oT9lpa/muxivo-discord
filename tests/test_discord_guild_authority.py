@@ -9,7 +9,7 @@ class FakeDiscordGuildAuthorityReader:
         self,
         *,
         owner_id: str | None,
-        member_role_ids: set[int],
+        member_role_ids: set[int] | None,
         roles: list[DiscordRole]
     ) -> None:
         self.owner_id = owner_id
@@ -19,7 +19,9 @@ class FakeDiscordGuildAuthorityReader:
     async def fetch_guild_owner_id(self, guild_id: str) -> str | None:
         return self.owner_id
 
-    async def fetch_member_role_ids(self, guild_id: str, user_id: str) -> set[int]:
+    async def fetch_member_role_ids_if_member(
+        self, guild_id: str, user_id: str
+    ) -> set[int] | None:
         return self.member_role_ids
 
     async def list_roles(self, guild_id: str) -> list[DiscordRole]:
@@ -65,8 +67,8 @@ async def test_everyone_administrator_permission_is_authorized() -> None:
     service = DiscordGuildAuthority(
         FakeDiscordGuildAuthorityReader(
             owner_id="3",
-            member_role_ids={22},
-            roles=[role("1", 8), role("22", 0)],
+            member_role_ids=set(),
+            roles=[role("1", 8)],
         )
     )
 
@@ -77,7 +79,7 @@ async def test_everyone_administrator_permission_is_authorized() -> None:
 async def test_non_member_or_non_administrator_is_denied() -> None:
     service = DiscordGuildAuthority(
         FakeDiscordGuildAuthorityReader(
-            owner_id="3", member_role_ids=set(), roles=[role("1", 8)]
+            owner_id="3", member_role_ids=None, roles=[role("1", 8)]
         )
     )
 

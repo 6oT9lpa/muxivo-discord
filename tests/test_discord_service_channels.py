@@ -5,7 +5,9 @@ from activity.server.services.discord_service import DiscordService
 
 
 @pytest.mark.asyncio
-async def test_moderation_channel_listing_includes_text_and_announcement_channels(monkeypatch) -> None:
+async def test_moderation_channel_listing_includes_text_and_announcement_channels(
+    monkeypatch,
+) -> None:
     service = DiscordService()
 
     async def channels(*_: object) -> list[dict[str, object]]:
@@ -55,3 +57,32 @@ async def test_moderation_channel_validation_rejects_voice_channel(monkeypatch) 
 
     with pytest.raises(HTTPException, match="message channels"):
         await service.validate_moderation_channel_ids("1", {12})
+
+
+@pytest.mark.asyncio
+async def test_member_role_lookup_preserves_an_empty_role_assignment(
+    monkeypatch,
+) -> None:
+    service = DiscordService()
+
+    async def member(*_: object) -> dict[str, object]:
+        return {"roles": []}
+
+    monkeypatch.setattr(service, "safe_bot_request", member)
+
+    assert await service.fetch_member_role_ids_if_member("1", "2") == set()
+
+
+@pytest.mark.asyncio
+async def test_member_role_lookup_distinguishes_an_unavailable_member(
+    monkeypatch,
+) -> None:
+    service = DiscordService()
+
+    async def missing(*_: object) -> None:
+        return None
+
+    monkeypatch.setattr(service, "safe_bot_request", missing)
+
+    assert await service.fetch_member_role_ids_if_member("1", "2") is None
+    assert await service.fetch_member_role_ids("1", "2") == set()
