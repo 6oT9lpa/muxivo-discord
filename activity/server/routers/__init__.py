@@ -5,6 +5,7 @@ from activity.server.routers import (
     auth,
     bot_settings,
     channel_purposes,
+    control,
     creator_alerts,
     dashboard,
     dev_blog,
@@ -24,6 +25,7 @@ from activity.server.routers import (
 
 
 def include_activity_routers(app: FastAPI) -> None:
+    app.include_router(control.router)
     app.include_router(auth.router)
     app.include_router(session.router)
     app.include_router(rbac.router)
