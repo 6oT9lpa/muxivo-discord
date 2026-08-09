@@ -168,6 +168,8 @@
   "header.get_to_know_us": "Get to Know Us",
   "header.see_panel": "See Panel",
   "header.discord_bot": "discord bot",
+  "panel.open_console": "Open Console",
+  "panel.open_console_help": "Open Muxivo Console in a new browser sign-in flow",
   "panel.activity": "activity",
   "panel.modules": "Panel modules",
   "panel.preview": "preview",

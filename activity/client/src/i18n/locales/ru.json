@@ -168,6 +168,8 @@
   "header.get_to_know_us": "О проекте",
   "header.see_panel": "Открыть панель",
   "header.discord_bot": "Discord-бот",
+  "panel.open_console": "Открыть Console",
+  "panel.open_console_help": "Открыть Muxivo Console в новом браузерном потоке входа",
   "panel.activity": "активность",
   "panel.modules": "Модули панели",
   "panel.preview": "предпросмотр",
