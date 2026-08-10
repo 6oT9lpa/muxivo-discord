@@ -40,6 +40,15 @@ def make_token(organization_id: str, **overrides: object) -> str:
     return f"{header}.{payload}.{base64.urlsafe_b64encode(signature).rstrip(b'=').decode()}"
 
 
+def read_token(organization_id: str, **overrides: object) -> str:
+    return make_token(
+        organization_id,
+        resource="console.control_modules",
+        action="read",
+        **overrides,
+    )
+
+
 def create_client(monkeypatch, verified: bool) -> TestClient:
     class FakeAuthority:
         async def has_administrator_permission(
@@ -124,9 +133,7 @@ def test_lists_browser_ready_modules_with_a_read_assertion(monkeypatch) -> None:
 
     response = client.get(
         f"/control/v1/organizations/{organization_id}/modules",
-        headers={
-            "Authorization": f"Bearer {make_token(organization_id, resource='console.control_modules', action='read')}"
-        },
+        headers={"Authorization": f"Bearer {read_token(organization_id)}"},
     )
 
     assert response.status_code == 200
@@ -142,6 +149,13 @@ def test_lists_browser_ready_modules_with_a_read_assertion(monkeypatch) -> None:
             {
                 "key": "discord.dashboard-summary",
                 "display_name": "Dashboard summary",
+                "platform": "discord",
+                "capability": "view",
+                "status": "available",
+            },
+            {
+                "key": "discord.server-stats",
+                "display_name": "Server stats",
                 "platform": "discord",
                 "capability": "view",
                 "status": "available",
@@ -166,9 +180,7 @@ def test_returns_health_only_with_a_read_assertion(monkeypatch) -> None:
     monkeypatch.setattr(control, "health_service", FakeHealthService())
     response = client.get(
         f"/control/v1/organizations/{organization_id}/health",
-        headers={
-            "Authorization": f"Bearer {make_token(organization_id, resource='console.control_modules', action='read')}"
-        },
+        headers={"Authorization": f"Bearer {read_token(organization_id)}"},
     )
 
     assert response.status_code == 200
@@ -198,7 +210,7 @@ def test_returns_dashboard_summary_only_for_the_assertion_bound_guild(
     response = client.get(
         f"/control/v1/organizations/{organization_id}/connections/{guild_id}/dashboard",
         headers={
-            "Authorization": f"Bearer {make_token(organization_id, resource='console.control_modules', action='read', platform_resource_id=guild_id)}"
+            "Authorization": f"Bearer {read_token(organization_id, platform_resource_id=guild_id)}"
         },
     )
 
@@ -215,8 +227,85 @@ def test_rejects_dashboard_request_when_the_signed_guild_does_not_match(
     response = client.get(
         f"/control/v1/organizations/{organization_id}/connections/123/dashboard",
         headers={
-            "Authorization": f"Bearer {make_token(organization_id, resource='console.control_modules', action='read', platform_resource_id='456')}"
+            "Authorization": f"Bearer {read_token(organization_id, platform_resource_id='456')}"
         },
     )
 
     assert response.status_code == 403
+
+
+def test_returns_server_stats_only_for_the_assertion_bound_guild(monkeypatch) -> None:
+    organization_id = str(uuid4())
+    guild_id = "123456789012345678"
+    client = create_client(monkeypatch, verified=True)
+
+    class FakeStatsService:
+        async def get_server_stats_snapshot(
+            self, requested_guild_id: int, period: int
+        ) -> dict[str, object]:
+            assert requested_guild_id == int(guild_id)
+            assert period == 14
+            return {
+                "summary": {"period_days": 14, "total_messages": 120},
+                "channels": [],
+                "hourly": [],
+                "daily": [],
+            }
+
+    monkeypatch.setattr(control, "stats_service", FakeStatsService())
+    response = client.get(
+        f"/control/v1/organizations/{organization_id}/connections/{guild_id}/server-stats?period=14",
+        headers={
+            "Authorization": f"Bearer {read_token(organization_id, platform_resource_id=guild_id)}"
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "guild_id": guild_id,
+        "stats": {
+            "summary": {"period_days": 14, "total_messages": 120},
+            "channels": [],
+            "hourly": [],
+            "daily": [],
+        },
+    }
+
+
+def test_rejects_server_stats_when_the_signed_guild_does_not_match(monkeypatch) -> None:
+    organization_id = str(uuid4())
+    client = create_client(monkeypatch, verified=True)
+
+    class FakeStatsService:
+        calls = 0
+
+        async def get_server_stats_snapshot(self, guild_id: int, period: int):
+            self.calls += 1
+            return {}
+
+    fake_stats = FakeStatsService()
+    monkeypatch.setattr(control, "stats_service", fake_stats)
+    response = client.get(
+        f"/control/v1/organizations/{organization_id}/connections/123/server-stats",
+        headers={
+            "Authorization": f"Bearer {read_token(organization_id, platform_resource_id='456')}"
+        },
+    )
+
+    assert response.status_code == 403
+    assert fake_stats.calls == 0
+
+
+def test_validates_server_stats_period_before_querying_service(monkeypatch) -> None:
+    organization_id = str(uuid4())
+    guild_id = "123456789012345678"
+    client = create_client(monkeypatch, verified=True)
+
+    response = client.get(
+        f"/control/v1/organizations/{organization_id}/connections/{guild_id}/server-stats?period=366",
+        headers={
+            "Authorization": f"Bearer {read_token(organization_id, platform_resource_id=guild_id)}"
+        },
+    )
+
+    assert response.status_code == 422
