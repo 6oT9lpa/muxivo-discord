@@ -15,9 +15,21 @@ class ActivityStatsService:
         self._access_service = ActivityAccessService()
         self._discord = DiscordService()
 
-    async def get_server_stats(self, guild_id: int, period: int, access_token: str) -> dict[str, Any]:
-        logger.info("Loading Activity server stats guild_id=%s period=%s", guild_id, period)
-        await self._access_service.ensure_module_access(access_token, str(guild_id), "server-stats")
+    async def get_server_stats(
+        self, guild_id: int, period: int, access_token: str
+    ) -> dict[str, Any]:
+        logger.info(
+            "Loading Activity server stats guild_id=%s period=%s", guild_id, period
+        )
+        await self._access_service.ensure_module_access(
+            access_token, str(guild_id), "server-stats"
+        )
+        return await self.get_server_stats_snapshot(guild_id, period)
+
+    async def get_server_stats_snapshot(
+        self, guild_id: int, period: int
+    ) -> dict[str, Any]:
+        """Return the shared read-only server stats snapshot after boundary auth."""
         return {
             "summary": await self._query_server_stats(guild_id, period),
             "channels": await self._query_channel_stats(guild_id, period),
@@ -25,9 +37,13 @@ class ActivityStatsService:
             "daily": await self._query_daily_stats(guild_id, min(period, 30)),
         }
 
-    async def search_user_stats(self, guild_id: int, query: str, access_token: str) -> list[dict[str, Any]]:
+    async def search_user_stats(
+        self, guild_id: int, query: str, access_token: str
+    ) -> list[dict[str, Any]]:
         logger.info("Searching Activity user stats guild_id=%s query=%s", guild_id, query)
-        await self._access_service.ensure_module_access(access_token, str(guild_id), "server-stats")
+        await self._access_service.ensure_module_access(
+            access_token, str(guild_id), "server-stats"
+        )
         # Discord's member-search endpoint only matches display names. It does
         # not find a snowflake (or a fragment of it), which made a valid ID
         # search look like an empty result in the Activity.
@@ -139,8 +155,7 @@ class ActivityStatsService:
             "user AI moderation stats",
         )
         result = {
-            user_id: self._empty_user_stats(guild_id, user_id)
-            for user_id in user_ids
+            user_id: self._empty_user_stats(guild_id, user_id) for user_id in user_ids
         }
         for rows in (base_rows, activity_rows, join_rows, punishment_rows, ai_rows):
             for row in rows:
@@ -212,9 +227,15 @@ class ActivityStatsService:
             params={"with_counts": "true"},
         )
         guild_payload = guild if isinstance(guild, dict) else {}
-        normalized_messages = {key: int(value or 0) for key, value in (messages or {}).items()}
+        normalized_messages = {
+            key: int(value or 0) for key, value in (messages or {}).items()
+        }
         normalized_membership = {
-            key: (str(value) if key == "membership_history_since" and value is not None else int(value or 0))
+            key: (
+                str(value)
+                if key == "membership_history_since" and value is not None
+                else int(value or 0)
+            )
             for key, value in (membership or {}).items()
         }
         joins = int(normalized_membership.get("joins", 0))
@@ -223,17 +244,23 @@ class ActivityStatsService:
         total_messages = int(normalized_messages.get("total_messages", 0))
         return {
             **normalized_messages,
-            "messages_per_active_user": round(total_messages / active_users, 2) if active_users else 0,
+            "messages_per_active_user": (
+                round(total_messages / active_users, 2) if active_users else 0
+            ),
             **{f"voice_{key}": int(value or 0) for key, value in (voice or {}).items()},
             **normalized_membership,
             "net_member_growth": joins - leaves,
-            "current_member_count": int(guild_payload.get("approximate_member_count") or 0),
+            "current_member_count": int(
+                guild_payload.get("approximate_member_count") or 0
+            ),
             "moderation_events": int((moderation or {}).get("moderation_events") or 0),
             "membership_history_complete": False,
             "period_days": period,
         }
 
-    async def _query_channel_stats(self, guild_id: int, period: int) -> list[dict[str, Any]]:
+    async def _query_channel_stats(
+        self, guild_id: int, period: int
+    ) -> list[dict[str, Any]]:
         rows = await self._fetch_all_or_empty(
             """
             SELECT channel_id, COUNT(*) AS messages
@@ -248,17 +275,24 @@ class ActivityStatsService:
         )
         channels = {
             channel["id"]: channel
-            for channel in await self._discord.safe_bot_request("GET", f"/guilds/{guild_id}/channels") or []
+            for channel in await self._discord.safe_bot_request(
+                "GET", f"/guilds/{guild_id}/channels"
+            )
+            or []
         }
         return [
             {
                 **row,
-                "channel_name": channels.get(str(row["channel_id"]), {}).get("name", str(row["channel_id"])),
+                "channel_name": channels.get(str(row["channel_id"]), {}).get(
+                    "name", str(row["channel_id"])
+                ),
             }
             for row in rows
         ]
 
-    async def _query_hourly_stats(self, guild_id: int, period: int) -> list[dict[str, int]]:
+    async def _query_hourly_stats(
+        self, guild_id: int, period: int
+    ) -> list[dict[str, int]]:
         rows = await self._fetch_all_or_empty(
             """
             SELECT EXTRACT(HOUR FROM timestamp)::integer AS hour, COUNT(*) AS count
@@ -275,7 +309,9 @@ class ActivityStatsService:
             values[int(row["hour"])] = int(row["count"])
         return [{"hour": hour, "count": count} for hour, count in values.items()]
 
-    async def _query_daily_stats(self, guild_id: int, days: int) -> list[dict[str, Any]]:
+    async def _query_daily_stats(
+        self, guild_id: int, days: int
+    ) -> list[dict[str, Any]]:
         rows = await self._fetch_all_or_empty(
             """
             SELECT timestamp::date AS day, COUNT(*) AS count
@@ -290,19 +326,26 @@ class ActivityStatsService:
         counts = {str(row["day"]): int(row["count"]) for row in rows}
         series = []
         for index in range(days - 1, -1, -1):
-            day_row = await get_db().fetch_one("SELECT (CURRENT_DATE + (?::interval))::date AS day", (f"-{index} days",))
+            day_row = await get_db().fetch_one(
+                "SELECT (CURRENT_DATE + (?::interval))::date AS day",
+                (f"-{index} days",),
+            )
             day = str(day_row["day"])
             series.append({"date": day, "count": counts.get(day, 0)})
         return series
 
-    async def _fetch_one_or_empty(self, query: str, params: tuple[Any, ...], label: str) -> dict[str, Any]:
+    async def _fetch_one_or_empty(
+        self, query: str, params: tuple[Any, ...], label: str
+    ) -> dict[str, Any]:
         try:
             return await get_db().fetch_one(query, params) or {}
         except Exception as exc:
             logger.warning("Activity %s unavailable error=%s", label, exc)
             return {}
 
-    async def _fetch_all_or_empty(self, query: str, params: tuple[Any, ...], label: str) -> list[dict[str, Any]]:
+    async def _fetch_all_or_empty(
+        self, query: str, params: tuple[Any, ...], label: str
+    ) -> list[dict[str, Any]]:
         try:
             return await get_db().fetch_all(query, params)
         except Exception as exc:
