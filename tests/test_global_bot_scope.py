@@ -40,27 +40,27 @@ async def test_role_repository_keeps_roles_scoped_by_guild(postgres_test_db):
     repository = RoleRepository(manager)
 
     await repository.sync_from_discord(
-            100,
-            [
-                {
-                    "id": 10,
-                    "name": "Alpha",
-                    "color": 111,
-                    "position": 1,
-                }
-            ],
-        )
+        100,
+        [
+            {
+                "id": 10,
+                "name": "Alpha",
+                "color": 111,
+                "position": 1,
+            }
+        ],
+    )
     await repository.sync_from_discord(
-            200,
-            [
-                {
-                    "id": 20,
-                    "name": "Beta",
-                    "color": 222,
-                    "position": 1,
-                }
-            ],
-        )
+        200,
+        [
+            {
+                "id": 20,
+                "name": "Beta",
+                "color": 222,
+                "position": 1,
+            }
+        ],
+    )
 
     await repository.set_auto_assign(10, True, 100)
     await repository.set_public(10, True, 100)
@@ -72,7 +72,7 @@ async def test_role_repository_keeps_roles_scoped_by_guild(postgres_test_db):
     assert [role["role_id"] for role in guild_100_roles] == [10]
     assert [role["role_id"] for role in guild_200_roles] == [20]
     assert await repository.get_auto_assign_roles(100) == [10]
-    assert await repository.get_auto_assign_roles(200)
+    assert await repository.get_auto_assign_roles(200) == []
     assert await repository.get_public_roles(200) == []
 
 
