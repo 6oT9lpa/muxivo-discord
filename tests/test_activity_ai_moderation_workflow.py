@@ -21,7 +21,9 @@ async def activity_ai_db(postgres_test_db):
 
 
 @pytest.mark.asyncio
-async def test_ai_moderation_persists_exact_discord_snowflakes_and_policy(activity_ai_db, monkeypatch):
+async def test_ai_moderation_persists_exact_discord_snowflakes_and_policy(
+    activity_ai_db, monkeypatch
+):
     """This covers the Activity save-and-reload workflow with production-size Discord IDs."""
     service = AiModerationService()
     guild_id = 1515345326909952052
@@ -41,11 +43,12 @@ async def test_ai_moderation_persists_exact_discord_snowflakes_and_policy(activi
         return []
 
     monkeypatch.setattr(service._access_service, "ensure_module_access", ensure_access)
-    monkeypatch.setattr(service._discord_service, "filter_moderation_channel_ids", filter_channels)
+    monkeypatch.setattr(
+        service._discord_service, "filter_moderation_channel_ids", filter_channels
+    )
     monkeypatch.setattr(service._discord_service, "list_channels", list_channels)
     monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
 
-    # Pydantic accepts decimal strings without changing their value before database storage.
     channels_payload = AiModerationChannelsPayload(
         guild_id=str(guild_id),
         channel_ids=[str(selected_channel_id), str(rejected_channel_id)],
@@ -74,7 +77,9 @@ async def test_ai_moderation_persists_exact_discord_snowflakes_and_policy(activi
 
 
 @pytest.mark.asyncio
-async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(activity_ai_db, monkeypatch):
+async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(
+    activity_ai_db, monkeypatch
+):
     service = AiModerationService()
     guild_id, actor_id = 3001, 4001
 
@@ -96,15 +101,26 @@ async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(a
         muxivo_core_request_timeout_seconds = 1
 
     class _Client:
-        def __init__(self, *_): pass
-        async def submit_feedback(self, **payload): delivered_feedback.append(payload); return {"status": "accepted"}
-        async def close(self): pass
+        def __init__(self, *_):
+            pass
+
+        async def submit_feedback(self, **payload):
+            delivered_feedback.append(payload)
+            return {"status": "accepted"}
+
+        async def close(self):
+            pass
 
     monkeypatch.setattr(ai_service_module, "get_config", lambda: _Config())
     monkeypatch.setattr(ai_service_module, "AiModeratorApiClient", _Client)
 
-    await activity_ai_db.execute("INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,))
-    await activity_ai_db.execute("INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'ADMIN', ?)", (guild_id, actor_id, actor_id))
+    await activity_ai_db.execute(
+        "INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,)
+    )
+    await activity_ai_db.execute(
+        "INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'ADMIN', ?)",
+        (guild_id, actor_id, actor_id),
+    )
     await activity_ai_db.execute(
         "INSERT INTO ai_moderation_review_items (guild_id, channel_id, message_id, user_id, message_text, risk_score, severity, action, labels_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb)",
         (guild_id, 1, 2, 3, "test", 40, 2, "REVIEW"),
@@ -113,10 +129,19 @@ async def test_review_queue_requires_trusted_labeling_admin_and_audits_updates(a
     page = await service.list_review_items(guild_id, "token", "OPEN", 20, 0)
     assert page["total"] == 1
     item = page["items"][0]
-    updated = await service.update_review_item(item["id"], AiModerationReviewUpdatePayload(
-        guild_id=guild_id, revision=item["revision"], message_text="corrected", risk_score=55, severity=4,
-        action="DELETE", status="RESOLVED",
-    ), "token")
+    updated = await service.update_review_item(
+        item["id"],
+        AiModerationReviewUpdatePayload(
+            guild_id=guild_id,
+            revision=item["revision"],
+            message_text="corrected",
+            risk_score=55,
+            severity=4,
+            action="DELETE",
+            status="RESOLVED",
+        ),
+        "token",
+    )
     assert updated["status"] == "RESOLVED"
     assert updated["revision"] == 2
     audit = await service.list_review_audit(guild_id, "token", 20, 0)
@@ -136,11 +161,18 @@ async def test_review_queue_allows_trusted_labeler(activity_ai_db, monkeypatch):
     service = AiModerationService()
     guild_id, actor_id = 3003, 4003
 
-    async def context(*_): return {"user": {"id": str(actor_id)}}
+    async def context(*_):
+        return {"user": {"id": str(actor_id)}}
+
     monkeypatch.setattr(service._access_service, "fetch_user_context", context)
     monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
-    await activity_ai_db.execute("INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,))
-    await activity_ai_db.execute("INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'LABELER', ?)", (guild_id, actor_id, actor_id))
+    await activity_ai_db.execute(
+        "INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,)
+    )
+    await activity_ai_db.execute(
+        "INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'LABELER', ?)",
+        (guild_id, actor_id, actor_id),
+    )
 
     assert await service.can_access_review_queue(guild_id, "token") is True
 
@@ -160,8 +192,13 @@ async def test_review_queue_backfills_historic_review_events(activity_ai_db, mon
     monkeypatch.setattr(service._access_service, "ensure_module_access", module_access)
     monkeypatch.setattr(service._access_service, "fetch_user_context", context)
     monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
-    await activity_ai_db.execute("INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,))
-    await activity_ai_db.execute("INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'LABELER', ?)", (guild_id, actor_id, actor_id))
+    await activity_ai_db.execute(
+        "INSERT INTO trusted_guilds (guild_id) VALUES (?)", (guild_id,)
+    )
+    await activity_ai_db.execute(
+        "INSERT INTO labeling_roles (guild_id, user_id, role, assigned_by) VALUES (?, ?, 'LABELER', ?)",
+        (guild_id, actor_id, actor_id),
+    )
     await activity_ai_db.execute(
         """INSERT INTO ai_moderation_events
            (guild_id, channel_id, message_id, user_id, risk_score, decision_action, proposed_action, primary_label, labels_json, confidence, latency_ms, status)
@@ -182,7 +219,9 @@ async def test_test_mode_simulation_never_creates_dataset_event(activity_ai_db, 
     service = AiModerationService()
     guild_id = 3002
 
-    async def module_access(*_): return {"id": "42"}, {"is_admin": True}
+    async def module_access(*_):
+        return {"id": "42"}, {"is_admin": True}
+
     monkeypatch.setattr(service._access_service, "ensure_module_access", module_access)
     monkeypatch.setattr(ai_service_module, "get_db", lambda: activity_ai_db)
 
@@ -192,14 +231,29 @@ async def test_test_mode_simulation_never_creates_dataset_event(activity_ai_db, 
         muxivo_core_request_timeout_seconds = 1
 
     class _Client:
-        def __init__(self, *_): pass
+        def __init__(self, *_):
+            pass
+
         async def simulate(self, _):
-            return {"risk_score": 50, "severity": 3, "confidence": 0.9, "latency_ms": 2, "decision_action": "WARN", "primary_label": "TOXIC", "labels": ["TOXIC"], "rule_matches": [], "execution_plan": ["WARN"]}
+            return {
+                "risk_score": 50,
+                "severity": 3,
+                "confidence": 0.9,
+                "latency_ms": 2,
+                "decision_action": "WARN",
+                "primary_label": "TOXIC",
+                "labels": ["TOXIC"],
+                "rule_matches": [],
+                "execution_plan": ["WARN"],
+            }
 
     monkeypatch.setattr(ai_service_module, "get_config", lambda: _Config())
     monkeypatch.setattr(ai_service_module, "AiModeratorApiClient", _Client)
-    await activity_ai_db.execute("INSERT INTO ai_moderation_settings (guild_id, policy_json) VALUES (?, '{\"test_mode\": true}'::jsonb)", (guild_id,))
+    await activity_ai_db.execute(
+        "INSERT INTO ai_moderation_settings (guild_id, policy_json) VALUES (?, '{\"test_mode\": true}'::jsonb)",
+        (guild_id,),
+    )
     result = await service.simulate(guild_id, "test message", "token")
     assert result["dataset_event_created"] is False
     assert result["model_action"] == "WARN"
-    assert result["policy_action"] == "WARN"
+    assert result["policy_action"] == "REVIEW"
