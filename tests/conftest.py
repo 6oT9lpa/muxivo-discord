@@ -1,7 +1,7 @@
 import asyncio
 import os
 import sys
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 import pytest
 import pytest_asyncio
@@ -9,20 +9,16 @@ import pytest_asyncio
 from infrastructure.database import DatabaseManager
 
 
-def pytest_asyncio_loop_factories(*_) -> Mapping[str, object] | None:
-    """Offer psycopg-compatible loops without changing Python's global policy."""
-    if sys.platform == "win32":
+def pytest_asyncio_loop_factories(
+    config: pytest.Config, item: pytest.Item
+) -> Mapping[str, Callable[[], asyncio.AbstractEventLoop]]:
+    """Use selector loops only for PostgreSQL integration tests on Windows."""
+    del config
+    if sys.platform == "win32" and "postgres_test_db" in getattr(
+        item, "fixturenames", ()
+    ):
         return {"selector": asyncio.SelectorEventLoop}
-    return None
-
-
-def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Run only PostgreSQL integration tests on the Windows selector loop."""
-    if sys.platform != "win32":
-        return
-    for item in items:
-        if "postgres_test_db" in getattr(item, "fixturenames", ()):
-            item.add_marker(pytest.mark.asyncio(loop_factories=("selector",)))
+    return {"default": asyncio.new_event_loop}
 
 
 _RUNTIME_TABLES = """
