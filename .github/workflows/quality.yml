@@ -39,7 +39,23 @@ jobs:
       - name: Compile application modules
         run: python -m compileall -q activity application core infrastructure
       - name: Migrate regression database
-        run: python -m alembic upgrade head
+        id: migration
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m alembic upgrade head 2>&1 | tee alembic-migration.log
+      - name: Upload migration failure log
+        if: steps.migration.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: discord-migration-failure
+          path: alembic-migration.log
+          if-no-files-found: error
+          retention-days: 7
+      - name: Fail migration quality gate
+        if: steps.migration.outcome == 'failure'
+        run: exit 1
       - name: Run Discord regression tests
         id: regression
         continue-on-error: true
