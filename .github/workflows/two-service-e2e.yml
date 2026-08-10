@@ -22,6 +22,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
+      DISCORD_TOKEN: ci-placeholder-token
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/moderation_e2e
       TEST_POSTGRESQL_URL: postgresql://postgres:postgres@127.0.0.1:5432/moderation_e2e
       E2E_MUXIVO_CORE_ROOT: ${{ github.workspace }}/Muxivo Core
     steps:
