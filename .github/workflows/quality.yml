@@ -24,7 +24,7 @@ jobs:
     env:
       DISCORD_TOKEN: ci-placeholder-token
       DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/discord_test
-      TEST_POSTGRESQL_URL: postgresql://postgres:postgres@127.0.0.1:5432/discord_test
+      POSTGRES_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/discord_test
     steps:
       - name: Check out Muxivo Discord
         uses: actions/checkout@v4
