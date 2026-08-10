@@ -45,6 +45,7 @@ async def _async_context(*, roles: set[int] | None = None, discord_admin: bool =
 @pytest.mark.asyncio
 async def test_activity_access_returns_403_before_role_sync(activity_db, monkeypatch):
     service = ActivityAccessService()
+
     async def fetch_context(*_):
         return await _async_context(discord_admin=True)
 
@@ -61,6 +62,7 @@ async def test_activity_access_returns_403_before_role_sync(activity_db, monkeyp
 @pytest.mark.asyncio
 async def test_activity_access_grants_default_modules_after_role_sync(activity_db, monkeypatch):
     service = ActivityAccessService()
+
     async def fetch_context(*_):
         return await _async_context(roles={10})
 
@@ -79,19 +81,14 @@ async def test_activity_access_grants_default_modules_after_role_sync(activity_d
     _, access = await service.fetch_user_and_access_state("token", "100")
 
     assert access["access_level"] == "ordinary"
-    assert set(access["available_modules"]) == {
-        "dashboard",
-        "integrations",
-        "health",
-        "server-stats",
-        "voice-rooms",
-    }
+    assert set(access["available_modules"]) == {"dashboard", "health"}
     assert access["permissions"]["logs"] == "disabled"
 
 
 @pytest.mark.asyncio
 async def test_activity_access_uses_assignment_for_administrator(activity_db, monkeypatch):
     service = ActivityAccessService()
+
     async def fetch_context(*_):
         return await _async_context(roles={99})
 
@@ -135,13 +132,16 @@ async def test_rbac_service_rejects_administrator_permission_update(activity_db,
     )
 
     service = ActivityRbacService()
+
     async def ensure_admin(*_):
         return {"id": "42", "username": "admin"}
 
     monkeypatch.setattr(service._access_service, "ensure_admin", ensure_admin)
 
     with pytest.raises(HTTPException) as exc:
-        await service.update_access_role_modules(100, admin_role["id"], {"logs": "disabled"}, "token")
+        await service.update_access_role_modules(
+            100, admin_role["id"], {"logs": "disabled"}, "token"
+        )
 
     assert exc.value.status_code == 400
     assert "immutable" in exc.value.detail
@@ -153,6 +153,7 @@ async def test_rbac_service_deletes_custom_access_role(activity_db, monkeypatch)
     await access_service._ensure_builtin_access_roles(100)
 
     service = ActivityRbacService()
+
     async def ensure_admin(*_):
         return {"id": "42", "username": "admin"}
 
@@ -160,7 +161,9 @@ async def test_rbac_service_deletes_custom_access_role(activity_db, monkeypatch)
     role = await service.create_access_role(100, "QA", "token")
 
     result = await service.delete_access_role(100, role.id, "token")
-    deleted = await activity_db.fetch_one("SELECT * FROM activity_access_roles WHERE id = ?", (role.id,))
+    deleted = await activity_db.fetch_one(
+        "SELECT * FROM activity_access_roles WHERE id = ?", (role.id,)
+    )
 
     assert result["deleted"] is True
     assert deleted is None
@@ -229,8 +232,16 @@ async def test_rbac_role_sync_persists_flags_as_bigints(monkeypatch):
     async def no_synced_roles(*_):
         return []
 
-    monkeypatch.setattr(rbac_service_module, "get_db", lambda: SimpleNamespace(execute=execute, commit=commit))
-    monkeypatch.setattr(service._access_service, "ensure_discord_administrator", ensure_discord_administrator)
+    monkeypatch.setattr(
+        rbac_service_module,
+        "get_db",
+        lambda: SimpleNamespace(execute=execute, commit=commit),
+    )
+    monkeypatch.setattr(
+        service._access_service,
+        "ensure_discord_administrator",
+        ensure_discord_administrator,
+    )
     monkeypatch.setattr(service._discord, "list_roles", list_roles)
     monkeypatch.setattr(service, "_get_access_role_by_slug", no_access_role)
     monkeypatch.setattr(service._audit_service, "log_action", no_audit)
@@ -263,7 +274,15 @@ async def test_repository_role_sync_uses_column_name_and_bigint_flag(monkeypatch
 
     await repository.sync_activity_roles_from_discord(
         100,
-        [{"id": "99", "name": "Administrators", "permissions": 8, "managed": False, "mentionable": True}],
+        [
+            {
+                "id": "99",
+                "name": "Administrators",
+                "permissions": 8,
+                "managed": False,
+                "mentionable": True,
+            }
+        ],
     )
 
     query, parameters = captured[0]
@@ -275,10 +294,13 @@ async def test_repository_role_sync_uses_column_name_and_bigint_flag(monkeypatch
 @pytest.mark.asyncio
 async def test_dev_blog_rejects_more_than_ten_drafts(activity_db, monkeypatch):
     service = DevBlogService()
+
     async def ensure_developer(*_):
         return {"id": "42", "username": "dev"}, {"is_developer": True}
 
-    monkeypatch.setattr(service._access_service, "ensure_developer_or_admin", ensure_developer)
+    monkeypatch.setattr(
+        service._access_service, "ensure_developer_or_admin", ensure_developer
+    )
     await activity_db.execute(
         "INSERT INTO server_channel_purposes (guild_id, purpose, channel_id) VALUES (?, ?, ?)",
         (100, "dev_blog", 555),
@@ -289,7 +311,7 @@ async def test_dev_blog_rejects_more_than_ten_drafts(activity_db, monkeypatch):
             INSERT INTO dev_blog_posts (guild_id, channel_id, author_id, title, payload_json, status)
             VALUES (?, ?, ?, ?, ?, 'draft')
             """,
-            (100, 555, 42, f"Draft {index}", "{}",),
+            (100, 555, 42, f"Draft {index}", "{}"),
         )
     await activity_db.commit()
 
@@ -310,10 +332,15 @@ async def test_dev_blog_rejects_more_than_ten_drafts(activity_db, monkeypatch):
 @pytest.mark.asyncio
 async def test_voice_room_user_can_only_manage_own_room(activity_db, monkeypatch):
     service = VoiceRoomService()
+
     async def ensure_voice(*_):
-        return {"id": "42", "username": "owner"}, {"access_level": "ordinary", "is_admin": False}
+        return {"id": "42", "username": "owner"}, {
+            "access_level": "ordinary",
+            "is_admin": False,
+        }
 
     monkeypatch.setattr(service._access_service, "ensure_module_access", ensure_voice)
+
     async def bot_request(*_, **__):
         return {"id": "700", "name": "Owner room", "permission_overwrites": []}
 
@@ -328,9 +355,13 @@ async def test_voice_room_user_can_only_manage_own_room(activity_db, monkeypatch
     )
     await activity_db.commit()
 
-    result = await service.update_room(700, VoiceRoomUpdatePayload(guild_id=100, locked=False), "token")
+    result = await service.update_room(
+        700, VoiceRoomUpdatePayload(guild_id=100, locked=False), "token"
+    )
     with pytest.raises(HTTPException) as exc:
-        await service.update_room(701, VoiceRoomUpdatePayload(guild_id=100, locked=False), "token")
+        await service.update_room(
+            701, VoiceRoomUpdatePayload(guild_id=100, locked=False), "token"
+        )
 
     assert result["updated"] is True
     assert exc.value.status_code == 403
@@ -339,6 +370,7 @@ async def test_voice_room_user_can_only_manage_own_room(activity_db, monkeypatch
 @pytest.mark.asyncio
 async def test_welcome_test_requires_configured_welcome_channel(activity_db, monkeypatch):
     service = ActivityWelcomeService()
+
     async def ensure_welcome(*_):
         return {"id": "42", "username": "admin"}, {"is_admin": True}
 
